@@ -13,7 +13,7 @@ Anyone can install in **3 steps**: copy skill → put one API key → run doctor
 
 ```bash
 # Option A — copy this folder wherever you keep agent skills
-DEST="$HOME/.agents/skills/research-pro"
+DEST="${RESEARCH_PRO_INSTALL_DIR:-$HOME/Projects/research-pro}"
 mkdir -p "$(dirname "$DEST")"
 # If you already have this repo checked out:
 cp -R /path/to/research-pro "$DEST"
@@ -58,7 +58,7 @@ chmod 600 ~/.config/research-pro/.env
 ### 3) Verify (READY gate)
 
 ```bash
-node ~/.agents/skills/research-pro/scripts/doctor.mjs --require-ready
+node ~/Projects/research-pro/scripts/doctor.mjs --require-ready
 # expect: ready YES / exit 0
 # exit 1 → follow the setup card (add a key), then re-run
 ```

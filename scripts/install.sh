@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEST="${RESEARCH_PRO_INSTALL_DIR:-$HOME/.agents/skills/research-pro}"
+DEST="${RESEARCH_PRO_INSTALL_DIR:-$HOME/Projects/research-pro}"
 
 echo "research-pro install"
 echo "  source: $ROOT"
