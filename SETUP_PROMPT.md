@@ -4,47 +4,35 @@ Copy the block below and paste it into your AI agent (Hermes, Claude Code, Codex
 
 ---
 
-## Step 1: Create your key file (manual, 10 seconds)
+## Step 1: Get your API key (free, 1 minute)
 
-```bash
-mkdir -p ~/.config/research-pro && chmod 700 ~/.config/research-pro
-cat > ~/.config/research-pro/.env << 'EOF'
-TAVILY_API_KEY=tvly-xxxxxxxxxxxxx
-# XAI_API_KEY=xai-xxxxxxxxxxxxx
-# OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxx
-EOF
-chmod 600 ~/.config/research-pro/.env
-```
+Go to https://app.tavily.com → sign up with email (no credit card needed) → copy your API key from the dashboard.
 
-Replace the `xxxxxxxxxxxxx` with your real key. Uncomment any one you have. **Minimum: any ONE key.**
+Or use xAI (https://console.x.ai) / OpenRouter (https://openrouter.ai/keys).
 
-Get keys:
-- **Tavily** (best default): https://tavily.com → free tier 1000 calls/month
-- **xAI/Grok**: https://console.x.ai → real-time + X/Twitter search
-- **OpenRouter**: https://openrouter.ai → Perplexity fallback
+## Step 2: Tell your agent to install
 
----
-
-## Step 2: Paste this to your agent
+Paste this to your AI agent (replace `tvly-YOUR_KEY_HERE` with your real key):
 
 ```text
-Install the research-pro skill and verify it works. Do these steps:
+Do these steps to install the research-pro skill:
 
-1. Clone the repo:
+1. Clone and install:
    git clone https://github.com/mfang0126/research-pro.git /tmp/research-pro
-
-2. Run the installer:
    cd /tmp/research-pro && bash scripts/install.sh
 
-3. Verify the doctor passes:
+2. Set up the API key:
+   mkdir -p ~/.config/research-pro
+   cp /tmp/research-pro/env.example ~/.config/research-pro/.env
+   Then edit ~/.config/research-pro/.env and set: TAVILY_API_KEY=tvly-YOUR_KEY_HERE
+   chmod 600 ~/.config/research-pro/.env
+
+3. Verify:
    node scripts/doctor.mjs --require-ready --json
 
-4. If doctor says "ready: false", tell me which keys are missing.
+4. If ready: true, search for "latest AI news today" as a test.
 
-5. If ready, do a quick test search:
-   Tell me the current date and search for "latest AI news today" using the research-pro skill.
-
-Report: installed ✓ / ready ✓ / keys detected ✓ or ✗ / test search ✓ or ✗
+Report: installed ✓/✗ · keys ✓/✗ · test search ✓/✗
 ```
 
 ---

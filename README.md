@@ -15,7 +15,7 @@ mkdir -p ~/.config/research-pro && chmod 700 ~/.config/research-pro
 echo "TAVILY_API_KEY=tvly-YOUR_KEY_HERE" > ~/.config/research-pro/.env && chmod 600 ~/.config/research-pro/.env
 ```
 
-Get a free key: https://tavily.com (1000 calls/month free tier). Or use `XAI_API_KEY` / `OPENROUTER_API_KEY`.
+Get a free key: https://app.tavily.com (1000 calls/month, no credit card, email signup). Or use `XAI_API_KEY` / `OPENROUTER_API_KEY`.
 
 ### 2. Install + verify (one command)
 
