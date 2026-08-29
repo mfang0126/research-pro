@@ -168,10 +168,13 @@ export RESEARCH_PRO_RUN_ID=$(node -e "let d='';process.stdin.read()||'{}';try{d=
 必须在 `execute_code` 中运行：
 
 ```python
-import runpy, sys
+import runpy, sys, os
 from pathlib import Path
 
-bridge = Path.home() / ".hermes/external-skills/research-pro/scripts/host_native_trace.py"
+# Resolve skill dir: Hermes uses {baseDir}; adjust if installed elsewhere
+BASE = Path(os.environ.get("RESEARCH_PRO_SKILL_DIR",
+    os.path.expanduser("~/.hermes/external-skills/research-pro")))
+bridge = BASE / "scripts" / "host_native_trace.py"
 sys.argv = [str(bridge), "search", "--query", "QUERY", "--hint", "quick"]
 runpy.run_path(str(bridge), run_name="__main__")
 ```
@@ -179,10 +182,12 @@ runpy.run_path(str(bridge), run_name="__main__")
 已知 URL 的正文提取：
 
 ```python
-import runpy, sys
+import runpy, sys, os
 from pathlib import Path
 
-bridge = Path.home() / ".hermes/external-skills/research-pro/scripts/host_native_trace.py"
+BASE = Path(os.environ.get("RESEARCH_PRO_SKILL_DIR",
+    os.path.expanduser("~/.hermes/external-skills/research-pro")))
+bridge = BASE / "scripts" / "host_native_trace.py"
 sys.argv = [str(bridge), "extract", "--urls", "https://example.com/page", "--hint", "scrape"]
 runpy.run_path(str(bridge), run_name="__main__")
 ```
@@ -825,7 +830,7 @@ node {baseDir}/scripts/search_with_trace.sh --query "..." --hint quick
 3. **降级结果 = 弱证据：** `degraded=true` 意味着结果不匹配请求的 hint 类型，不能当强证据用
 4. **优先本地上下文：** 问题涉及当前 repo/config/状态时，先读本地文件再搜外部
 5. **保留证据：** 最终回答必须引用 source_type、URL、以及任何降级信息
-6. **从日志优化：** 检查 `$RESEARCH_PRO_HOME/runs/<id>/calls.jsonl` 与 `run-log.jsonl`；smart-search 全局 log 仍在 `~/.hermes/logs/smart-search.jsonl`
+6. **从日志优化：** 检查 `$RESEARCH_PRO_HOME/runs/<id>/calls.jsonl` 与 `run-log.jsonl`；smart-search 全局 log 仍在 `~/.hermes/logs/smart-search.jsonl`（仅 Hermes 平台）
 7. **0 结果自动放宽：** 某次搜索返回 0 结果 → **不要直接判定"无信息"**；先自动放宽 query（去掉最具体的限定词/年份/长修饰，或换近义关键词）重试一次，仍 0 才记为空。过窄的长 query 是 0 结果的头号原因。
 
 ### 降级处理指南
