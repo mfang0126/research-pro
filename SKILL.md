@@ -21,7 +21,7 @@ version: 3.17.1-mf
 metadata:
   fork:
     origin: research-pro-v2
-    maintainer: mingfang
+    maintainer: community
     version: v3.17.0-mf
     created: "2026-04-12"
     changes:
