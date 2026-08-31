@@ -82,7 +82,7 @@ If you get permission errors during installation:
 
 ```bash
 # Option 1: Use sudo (not recommended)
-sudo npm install -g firecrawl-cli
+npm install -g firecrawl-cli
 
 # Option 2: Fix npm permissions (recommended)
 mkdir ~/.npm-global

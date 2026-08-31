@@ -35,9 +35,9 @@ Do **not** put API keys inside `skills/research-pro/` (updates can wipe them; su
 
 ### 2. Prefer host injection when possible
 
-- **Hermes:** `~/.hermes/.env`
+- **Hermes:** `~/.your-tool/.env`
 - **OpenClaw:** `~/.openclaw/.env`
-- **Claude Code:** `~/.claude/settings.json` → `"env": { "TAVILY_API_KEY": "..." }`
+- **Claude Code:** `~/.your-agent/config.json` → `"env": { "YOUR_API_KEY": "..." }`
 - **Codex:** parent shell env + `shell_environment_policy` allowlist
 
 ### 3. Harden Claude Code against reading secret files
@@ -49,7 +49,7 @@ Do **not** put API keys inside `skills/research-pro/` (updates can wipe them; su
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(~/.config/research-pro/**)",
-      "Read(~/.hermes/.env)",
+      "Read(~/.your-tool/.env)",
       "Read(~/.openclaw/.env)"
     ]
   }

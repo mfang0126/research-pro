@@ -33,8 +33,8 @@ pip install -U langchain-tavily
 import getpass
 import os
 
-if not os.environ.get("TAVILY_API_KEY"):
-    os.environ["TAVILY_API_KEY"] = getpass.getpass("Tavily API key:\n")
+if not os.environ.get("YOUR_API_KEY"):
+    os.environ["YOUR_API_KEY"] = getpass.getpass("Tavily API key:\n")
 ```
 
 ### Tavily Search
@@ -197,7 +197,7 @@ pip install "pydantic-ai-slim[tavily]"
 Set this as an environment variable:
 
 ```bash
-export TAVILY_API_KEY=your_tavily_api_key
+export YOUR_API_KEY=your_your_api_key
 ```
 
 #### Step 3: Initialize Pydantic AI Agent with Tavily Tools
@@ -208,7 +208,7 @@ from pydantic_ai.agent import Agent
 from pydantic_ai.common_tools.tavily import tavily_search_tool
 
 # Get API key from environment
-api_key = os.getenv("TAVILY_API_KEY")
+api_key = os.getenv("YOUR_API_KEY")
 assert api_key is not None
 
 # Initialize the agent with Tavily tools
@@ -271,7 +271,7 @@ pip install agno tavily-python
 Set these as environment variables:
 
 ```bash
-export TAVILY_API_KEY=your_tavily_api_key
+export YOUR_API_KEY=your_your_api_key
 export OPENAI_API_KEY=your_openai_api_key
 ```
 
@@ -405,8 +405,8 @@ pip install anthropic tavily-python
 ### Setup
 
 ```bash
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-export TAVILY_API_KEY="your-tavily-api-key"
+export YOUR_API_KEY="your-anthropic-api-key"
+export YOUR_API_KEY="your-tavily-api-key"
 ```
 
 ### Using Tavily With Anthropic Tool Calling
@@ -417,8 +417,8 @@ import os
 from anthropic import Anthropic
 from tavily import TavilyClient
 
-client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-tavily_client = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
+client = Anthropic(api_key=os.environ["YOUR_API_KEY"])
+tavily_client = TavilyClient(api_key=os.environ["YOUR_API_KEY"])
 MODEL_NAME = "claude-sonnet"
 ```
 
@@ -562,7 +562,7 @@ from google.adk.agents import Agent
 from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPServerParams
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset
 
-tavily_api_key = os.getenv("TAVILY_API_KEY")
+your_api_key = os.getenv("YOUR_API_KEY")
 
 root_agent = Agent(
     model="gemini-2.5-pro",
@@ -576,7 +576,7 @@ root_agent = Agent(
         MCPToolset(
             connection_params=StreamableHTTPServerParams(
                 url="https://mcp.tavily.com/mcp/",
-                headers={"Authorization": f"Bearer {tavily_api_key}"},
+                headers={"Authorization": f"Bearer {your_api_key}"},
             )
         )
     ],
@@ -587,7 +587,7 @@ root_agent = Agent(
 
 ```bash
 export GOOGLE_API_KEY="your_gemini_api_key_here"
-export TAVILY_API_KEY="your_tavily_api_key_here"
+export YOUR_API_KEY="your_your_api_key_here"
 ```
 
 ### Run
@@ -673,7 +673,7 @@ import os
 from crewai import Agent, Task, Crew
 from crewai_tools import TavilySearchTool, TavilyExtractTool
 
-os.environ["TAVILY_API_KEY"] = "your-api-key"
+os.environ["YOUR_API_KEY"] = "your-api-key"
 
 # Search tool
 search_tool = TavilySearchTool()

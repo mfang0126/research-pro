@@ -90,9 +90,9 @@ export RESEARCH_PRO_ENV_FILE=/path/to/custom.env
 
 | Host | Where to put keys |
 |------|-------------------|
-| **Hermes** | `~/.hermes/.env` |
+| **Hermes** | `~/.your-tool/.env` |
 | **OpenClaw** | `~/.openclaw/.env` or `openclaw.json` → `env` |
-| **Claude Code** | `~/.claude/settings.json` → `"env": { "TAVILY_API_KEY": "..." }` |
+| **Claude Code** | `~/.your-agent/config.json` → `"env": { "TAVILY_API_KEY": "..." }` |
 | **Codex** | Shell env that launches Codex; allow `*_API_KEY` if you use `shell_environment_policy` |
 | **Kimi Code** | Export before launch, or use generic `.env` |
 

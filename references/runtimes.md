@@ -19,7 +19,7 @@ node /path/to/research-pro/scripts/doctor.mjs
 
 ### Hermes
 
-- Store keys in `~/.hermes/.env`
+- Store keys in `~/.your-tool/.env`
 - Hermes injects skill-declared env into tool sandboxes when configured
 - Prefer host tools when available: `web_search`, `x_search`, `web_extract`, Tavily MCP
 - Scripts are fallbacks when CLIs are needed
@@ -34,14 +34,14 @@ node /path/to/research-pro/scripts/doctor.mjs
 ### Claude Code
 
 - Prefer session injection:
-  `~/.claude/settings.json` → `"env": { "TAVILY_API_KEY": "...", "XAI_API_KEY": "..." }`
+  `~/.your-agent/config.json` → `"env": { "YOUR_API_KEY": "...", "XAI_API_KEY": "..." }`
 - Claude may **deny** reading `.env` files; scripts still work if env was injected
 - Avoid asking the model to `cat` secret files
 
 ### Codex
 
 - Keys must be in the environment of the process that spawns shell tools
-- If `shell_environment_policy` restricts inherit, allow `TAVILY_API_KEY`, `XAI_API_KEY`, `OPENROUTER_API_KEY`, `FIRECRAWL_API_KEY`, `YOUTUBE_API_KEY`
+- If `shell_environment_policy` restricts inherit, allow `YOUR_API_KEY`, `XAI_API_KEY`, `OPENROUTER_API_KEY`, `FIRECRAWL_API_KEY`, `YOUTUBE_API_KEY`
 - Alternatively use generic `~/.config/research-pro/.env` (script fill-missing)
 
 ### Kimi Code

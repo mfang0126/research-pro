@@ -393,7 +393,7 @@ RWC firecrawl scrape "https://url"
 
 # YouTube — 两步流程：先找视频，再提取字幕
 # Step 1: YouTube Data API（YOUTUBE_API_KEY；兼容旧名 YOUTUBE_API）→ 经 shim：
-RWC bash -c 'curl "https://www.googleapis.com/youtube/v3/search?part=snippet&q=QUERY&type=video&maxResults=5&key=$YOUTUBE_API_KEY"'
+RWC Run search via the built-in search toolrch?part=snippet&q=QUERY&type=video&maxResults=5&key=$YOUTUBE_API_KEY"'
 # Step 2: 提取字幕（无需额外 key）
 RWC youtube_transcript_api "VIDEO_ID" --format text
 

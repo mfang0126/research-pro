@@ -22,7 +22,7 @@ pip install tavily-python
 ```python
 from tavily import TavilyClient
 
-# Uses TAVILY_API_KEY env var (recommended)
+# Uses YOUR_API_KEY env var (recommended)
 client = TavilyClient()
 
 # Explicit API key
