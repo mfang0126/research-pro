@@ -1,0 +1,344 @@
+{
+  "skill_name": "research-pro",
+  "description": "Eval suite for research-pro skill covering all four research modes plus edge cases",
+  "evals": [
+    {
+      "id": 1,
+      "name": "quick-mode-chinese-nextjs",
+      "prompt": "Next.js 15 有什么新功能？",
+      "expected_mode": "Quick",
+      "expected_tools": ["web_search"],
+      "expected_output": "A concise summary of 3–5 new Next.js 15 features with a link to the official release notes or docs. Should complete in ~30 seconds without scraping multiple pages.",
+      "success_criteria": [
+        "Correctly identifies mode as Quick (not Standard or Deep)",
+        "Uses web_search as the primary tool",
+        "Does NOT call firecrawl on more than 1 page",
+        "Lists at least 3 specific new features (not generic)",
+        "Includes at least one source URL",
+        "Response is concise — no multi-section report format"
+      ],
+      "should_not": [
+        "Spawn a full Tavily research report for a simple factual query",
+        "Scrape 3+ pages for a well-known framework version"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "standard-mode-ai-agent-trends",
+      "prompt": "帮我了解 AI agent 框架趋势，2025 年有哪些值得关注的框架？",
+      "expected_mode": "Standard",
+      "expected_tools": ["web_search", "firecrawl_scrape"],
+      "expected_output": "A structured overview of AI agent framework trends with 3–5 frameworks highlighted. Should include citations from multiple sources.",
+      "success_criteria": [
+        "Correctly identifies mode as Standard",
+        "Searches and scrapes 3–5 quality sources",
+        "Output is structured: overview → key frameworks → citations",
+        "Names specific frameworks (e.g., LangGraph, CrewAI, AutoGen, etc.)",
+        "Includes numbered citations with URLs",
+        "Does not include a bare-bones 3-bullet summary (too shallow for Standard)"
+      ],
+      "should_not": [
+        "Escalate unnecessarily to Deep mode without user asking",
+        "Stop at just search snippets without fetching any full content"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "deep-mode-database-comparison",
+      "prompt": "详细对比 Supabase vs Firebase vs PocketBase，我想为一个新项目选型",
+      "expected_mode": "Deep",
+      "expected_tools": ["research.sh (Tavily)", "firecrawl_scrape", "web_search"],
+      "expected_output": "A comprehensive comparison report covering pricing, features, scalability, developer experience, and self-hosting options. Should include an Executive Summary suitable for sharing with a team.",
+      "success_criteria": [
+        "Correctly identifies mode as Deep (multi-entity comparison + '详细')",
+        "Invokes Tavily research script OR does thorough multi-source research",
+        "Output has an Executive Summary section",
+        "Includes a comparison table or structured per-product breakdown",
+        "Covers at least: pricing, features, scalability, self-hosting",
+        "Cross-references at least 2 different source types (docs + blog/community)",
+        "Provides a recommendation or decision guidance"
+      ],
+      "should_not": [
+        "Return a 3-bullet Quick Mode summary for a decision-critical comparison",
+        "Only use one source per product"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "crawl-mode-competitor-pricing",
+      "prompt": "调研这 5 个竞品的定价策略：Notion, Coda, Obsidian, Roam, Logseq",
+      "expected_mode": "Crawl",
+      "expected_tools": ["web_search", "firecrawl_scrape", "firecrawl_extract"],
+      "expected_output": "A pricing comparison matrix across all 5 products, with per-product tier breakdowns and a summary of pricing strategies (freemium, subscription, one-time, etc.).",
+      "success_criteria": [
+        "Correctly identifies mode as Crawl (multiple named entities)",
+        "Collects pricing data for all 5 products",
+        "Outputs a Markdown comparison table",
+        "Notes free tier availability for each product",
+        "Notes pricing model type (freemium / subscription / one-time) for each",
+        "Includes source URLs for pricing pages"
+      ],
+      "should_not": [
+        "Only research 2–3 of the 5 products",
+        "Return a narrative without a structured comparison table"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "english-trigger-quantum-computing",
+      "prompt": "Research the latest developments in quantum computing — especially anything from 2024–2025",
+      "expected_mode": "Standard",
+      "expected_tools": ["web_search", "firecrawl_scrape"],
+      "expected_output": "A structured overview of recent quantum computing milestones and developments, with emphasis on 2024–2025 news. Multiple cited sources.",
+      "success_criteria": [
+        "Skill triggers correctly on an English research request",
+        "Mode is Standard or Deep (broad topic with recency requirement)",
+        "Focuses results on 2024–2025 timeframe",
+        "Identifies at least 3 specific developments or milestones",
+        "Includes citations with URLs",
+        "Does not confuse with Quick Mode (too broad for a 3-bullet answer)"
+      ],
+      "should_not": [
+        "Fail to trigger because the prompt is in English",
+        "Return stale pre-2024 information as 'latest'"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "edge-case-vague-query",
+      "prompt": "查一下",
+      "expected_mode": "Clarification needed",
+      "expected_tools": [],
+      "expected_output": "The skill should NOT attempt research. It should ask the user what they want to look up — e.g., '查什么呢？给我个话题或关键词，我来帮你研究。'",
+      "success_criteria": [
+        "Does NOT blindly start researching without a topic",
+        "Asks a single focused clarifying question",
+        "Clarification request is in Chinese (matching the user's language)",
+        "Response is brief — not a long explanation about the skill"
+      ],
+      "should_not": [
+        "Attempt to research a generic topic like 'latest news'",
+        "Return an error message instead of a friendly clarification ask",
+        "Ask multiple questions at once"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "deep-mode-market-research",
+      "prompt": "I want to launch an AI writing assistant SaaS. Do a deep dive on the competitive landscape and market opportunity.",
+      "expected_mode": "Deep",
+      "expected_tools": ["research.sh (Tavily)", "web_search", "firecrawl_scrape"],
+      "expected_output": "A market research report covering major competitors, market size estimates, pricing patterns, differentiators, and white-space opportunities. Executive Summary included.",
+      "success_criteria": [
+        "Correctly identifies as Deep mode (broad strategic topic + 'deep dive')",
+        "Identifies at least 5 competitors in the AI writing space",
+        "Includes market sizing or growth figures with sources",
+        "Has an Executive Summary",
+        "Highlights differentiation opportunities or gaps",
+        "Multiple sources cited (at least 4)"
+      ],
+      "should_not": [
+        "Treat this as a Quick Mode query",
+        "List competitors without any analysis or comparison"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "tavily-api-fallback",
+      "prompt": "详细研究一下 WebAssembly 在服务端的应用现状和未来方向",
+      "expected_mode": "Deep",
+      "expected_tools": ["research.sh (Tavily) OR web_search + firecrawl_scrape"],
+      "expected_output": "A detailed report on server-side WebAssembly, covering current adoption (WASI, WasmEdge, Fermyon, etc.), use cases, performance benchmarks, and future trajectory.",
+      "success_criteria": [
+        "Mode is Deep (technical deep-dive requested)",
+        "Covers current runtime ecosystem (e.g., WASI, WasmEdge, Wasmtime, Spin)",
+        "Discusses real-world adoption cases or companies",
+        "Mentions performance characteristics vs containers/VMs",
+        "If Tavily unavailable, gracefully degrades to web_search + firecrawl",
+        "Report is substantive — not a Wikipedia-level overview"
+      ],
+      "should_not": [
+        "Crash or return an error if TAVILY_API_KEY is not set",
+        "Return surface-level info that could be answered from training data alone"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "alias-grok-web",
+      "prompt": "用 grok 搜一下 Claude 4 最新消息",
+      "expected_mode": "Alias → Grok web_search",
+      "expected_tools": ["grok_search.mjs --web"],
+      "expected_output": "Direct grok web search results about Claude 4, formatted as JSON then summarized.",
+      "success_criteria": [
+        "Detects 'grok' alias and skips mode selection",
+        "Calls node {skillDir}/scripts/grok_search.mjs with --web flag",
+        "Does NOT invoke Tavily or Firecrawl",
+        "Returns results with citations"
+      ],
+      "should_not": [
+        "Enter Standard or Deep mode for an aliased request",
+        "Ignore the alias and use default tvly search"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "alias-tavily-extract",
+      "prompt": "tavily extract https://docs.anthropic.com/en/docs/overview",
+      "expected_mode": "Alias → tvly extract",
+      "expected_tools": ["tvly extract"],
+      "expected_output": "Clean markdown content from the specified URL.",
+      "success_criteria": [
+        "Detects 'tavily extract' alias",
+        "Calls tvly extract with the exact URL",
+        "Returns extracted content",
+        "Does NOT enter mode selection"
+      ],
+      "should_not": [
+        "Use firecrawl scrape instead of tvly extract",
+        "Search for the URL instead of extracting it"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "alias-default-search",
+      "prompt": "search for the latest AI agent frameworks",
+      "expected_mode": "Alias → tvly search (default)",
+      "expected_tools": ["tvly search"],
+      "expected_output": "Tavily search results for AI agent frameworks.",
+      "success_criteria": [
+        "Detects bare 'search' without tool name",
+        "Defaults to tvly search",
+        "Returns structured search results",
+        "Does NOT escalate to full Standard/Deep mode"
+      ],
+      "should_not": [
+        "Use grok web_search for an unspecified 'search'",
+        "Enter Deep mode for a simple search alias"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "alias-reddit",
+      "prompt": "reddit 上怎么看 Cursor vs Claude Code",
+      "expected_mode": "Alias → reddit-cli",
+      "expected_tools": ["reddit-cli.js search"],
+      "expected_output": "Reddit search results about Cursor vs Claude Code discussions.",
+      "success_criteria": [
+        "Detects 'reddit' alias",
+        "Calls node {skillDir}/scripts/reddit-cli.js search",
+        "Returns Reddit posts/discussions",
+        "Does NOT enter full research mode"
+      ],
+      "should_not": [
+        "Ignore the reddit alias and do a general web search",
+        "Escalate to Deep mode"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "no-alias-normal-research",
+      "prompt": "帮我研究一下 Rust 在 web 开发的应用现状",
+      "expected_mode": "Standard",
+      "expected_tools": ["web_search", "firecrawl_scrape"],
+      "expected_output": "Standard mode research report on Rust in web development.",
+      "success_criteria": [
+        "No alias detected — enters normal mode selection",
+        "Correctly identifies Standard mode",
+        "Uses multiple tools as per Standard mode workflow",
+        "Outputs structured report with citations"
+      ],
+      "should_not": [
+        "Default to tvly search just because no alias was given",
+        "Skip mode selection"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "search-contract-blocks-adjacent-cicd-drift",
+      "prompt": "研究 agent-governance 的上下文路由应该怎么设计",
+      "expected_mode": "Contract confirmation before research",
+      "expected_tools": [],
+      "success_criteria": [
+        "Writes a Chinese Search Contract anchored to 'agent-governance 的上下文路由' before any external search",
+        "Explicitly excludes CI/CD, GitHub Actions, and deployment governance unless the user adds them",
+        "Does not construct any query, route any tool, or search until the user explicitly confirms the displayed contract",
+        "Does not construct CI/CD/deployment queries or cite them as relevant evidence"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "clear-comparison-requires-displayed-contract-confirmation",
+      "prompt": "比较 LangGraph 和 CrewAI，帮我为客服 agent 选型，重点是状态管理和可观测性",
+      "expected_mode": "DRAFT contract shown → wait for explicit confirmation",
+      "expected_tools": [],
+      "success_criteria": [
+        "Shows an anchored Search Contract before any external research, even though the comparison request is clear",
+        "Does not enter CONTRACT_ACCEPTED, construct queries, route tools, or search until a later explicit confirmation",
+        "Asks only for confirmation or correction of the displayed contract, not research-detail questions that the spiral should discover"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "explicit-single-source-uses-narrow-selfcheck",
+      "prompt": "提取并用三点总结 https://docs.anthropic.com/en/docs/overview",
+      "expected_mode": "NARROW_SELFCHECK",
+      "expected_tools": ["web_extract"],
+      "success_criteria": [
+        "Performs a lightweight single-source self-check and enters NARROW_SELFCHECK",
+        "Does not force a confirmation round",
+        "Does not broaden into cross-source comparison or background research"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "headless-complete-contract-proceeds",
+      "prompt": "HEADLESS CONTRACT: decision=choose context-routing policy; object=agent-governance context routing; in_scope=policy patterns and tradeoffs; out_of_scope=CI/CD and deployment; answer_shape=comparison plus recommendation; anchor_evidence=task body phrase 'agent-governance context routing'",
+      "expected_mode": "CONTRACT_ACCEPTED → Standard",
+      "expected_tools": ["web_search"],
+      "success_criteria": [
+        "Recognizes all six machine-checkable headless fields",
+        "Proceeds only within the approved contract"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "headless-incomplete-contract-blocks",
+      "prompt": "HEADLESS: research our agent governance",
+      "expected_mode": "needs_input",
+      "expected_tools": [],
+      "success_criteria": [
+        "Posts a draft Search Contract and blocks needs_input",
+        "Does not search or silently infer omitted object, boundaries, or answer shape"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "scope-correction-clears-rejected-direction",
+      "prompt": "User corrects an earlier CI/CD research plan: '不是部署治理；只研究 agent-governance 的上下文路由。'",
+      "expected_mode": "DRAFT → rebuilt DRAFT contract shown → wait for explicit confirmation",
+      "expected_tools": [],
+      "success_criteria": [
+        "Discards old CI/CD subquestions, queries, planned tools, URLs, findings, and candidate conclusions",
+        "Rebuilds the Research Map from the corrected contract",
+        "Shows the rebuilt contract and waits for a new explicit confirmation before entering CONTRACT_ACCEPTED or searching",
+        "Does not report rejected-direction evidence as relevant"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "regression-topic-restatement-is-not-contract-confirmation",
+      "prompt": "本来在聊这个事情，就是文档 gov 怎么保证正确读取文档",
+      "expected_mode": "DRAFT contract shown → wait for explicit confirmation",
+      "expected_tools": [],
+      "success_criteria": [
+        "Shows a DRAFT Search Contract anchored to the user's document-governance wording",
+        "Treats this topic restatement/clarification as not being confirmation of any contract",
+        "Does not construct a query, route a tool, invoke an external search, or begin multi-source research until the user explicitly confirms or corrects the displayed contract"
+      ],
+      "should_not": [
+        "Treat the apparent clarity of the topic as accepted-selfcheck",
+        "Use any external search or research tool before a later explicit confirmation"
+      ]
+    }
+  ]
+}
