@@ -380,12 +380,9 @@ RWC tvly extract "https://url"
 # Tavily — 深度综合报告（~42s，自动整合多源）
 RWC tvly research "query"
 
-# Perplexity via OpenRouter — 实时网络搜索 + 推理（凭据由 credentials 解析，勿 source 平台 .env）
-# sonar: 快速实时搜索；sonar-pro: 更深度，带引用。用到 $OPENROUTER_API_KEY → 经 shim：
-RWC bash -c 'curl -s https://openrouter.ai/api/v1/chat/completions \
-  -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "{\"model\":\"perplexity/sonar\",\"messages\":[{\"role\":\"user\",\"content\":\"QUERY\"}],\"max_tokens\":500}"'
+# Perplexity via OpenRouter — real-time search (credentials managed by the credentials shim)
+# sonar: quick search; sonar-pro: deeper with citations. Use the search tool's built-in Perplexity support.
+RWC echo "Use the built-in search tool with hint=official for Perplexity-powered search"
 
 # Firecrawl — 深挖单页完整内容（不支持 Reddit）
 RWC firecrawl search "query" --limit 10
