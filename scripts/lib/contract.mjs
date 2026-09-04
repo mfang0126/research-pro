@@ -10,6 +10,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { classifyUrl, finalUrlStatus } from "./url_policy.mjs";
 
 export const CONTRACT_SCHEMA_VERSION = "1.0";
@@ -41,6 +42,7 @@ export const ERROR_CODES = Object.freeze({
   EMPTY_FIELD: "EMPTY_FIELD",
   INVALID_TYPE: "INVALID_TYPE",
   UNKNOWN_TOP_LEVEL_FIELD: "UNKNOWN_TOP_LEVEL_FIELD",
+  UNKNOWN_FIELD: "UNKNOWN_FIELD",
   EMPTY_SUB_QUESTIONS: "EMPTY_SUB_QUESTIONS",
   DUPLICATE_SUB_QUESTION_ID: "DUPLICATE_SUB_QUESTION_ID",
   INVALID_SUB_QUESTION: "INVALID_SUB_QUESTION",
@@ -67,33 +69,13 @@ export const ERROR_CODES = Object.freeze({
 });
 
 const HASH_RE = /^[0-9a-f]{64}$/;
-const REQUIRED_CONTRACT_FIELDS = [
-  "schema_version",
-  "question",
-  "decision",
-  "object",
-  "in_scope",
-  "out_of_scope",
-  "answer_shape",
-  "sub_questions",
-];
-const CONTRACT_FIELDS = new Set([
-  ...REQUIRED_CONTRACT_FIELDS,
-  "anchor_evidence",
-  "source_policy",
-  "budget",
-  "freshness",
-  "state",
-  "confirmation",
-  "query_strategy",
-  "deep_requirements",
-  "estimand",
-  "evidence_policy",
-  "output_policy",
-  "metadata",
-  "created_at",
-  "updated_at",
-]);
+const REQUIRED_BOUNDARY_FIELDS = ["schema_version", "question", "decision", "object", "in_scope", "out_of_scope", "answer_shape", "sub_questions"];
+const REQUIRED_STRUCTURED_FIELDS = ["source_policy", "budget", "freshness", "state", "confirmation", "query_strategy", "deep_requirements"];
+const REQUIRED_CONTRACT_FIELDS = [...REQUIRED_BOUNDARY_FIELDS, ...REQUIRED_STRUCTURED_FIELDS];
+const CONTRACT_FIELDS = new Set(REQUIRED_CONTRACT_FIELDS.concat("anchor_evidence"));
+const UNKNOWN_FIELD_CODE = ERROR_CODES.UNKNOWN_FIELD;
+const YAML_MAX_BYTES = 256 * 1024;
+const YAML_MAX_DEPTH = 128;
 
 const clone = (value) => {
   if (value === null || typeof value !== "object") return value;
@@ -144,7 +126,77 @@ function nonEmptyArray(errors, object, field, prefix = "") {
     errors.push(issue(ERROR_CODES.EMPTY_FIELD, path, `${path} must be a non-empty array`));
     return false;
   }
+  for (const [index, item] of object[field].entries()) {
+    if (typeof item !== "string") errors.push(issue(ERROR_CODES.INVALID_TYPE, `${path}.${index}`, `${path}.${index} must be a string`));
+    else if (!item.trim()) errors.push(issue(ERROR_CODES.EMPTY_FIELD, `${path}.${index}`, `${path}.${index} must be non-empty`));
+  }
   return true;
+}
+
+function requiredObject(errors, object, field) {
+  if (!Object.prototype.hasOwnProperty.call(object, field) || object[field] === undefined) {
+    errors.push(issue(ERROR_CODES.MISSING_FIELD, field, `${field} is required`));
+    return false;
+  }
+  if (!isPlainObject(object[field])) {
+    errors.push(issue(ERROR_CODES.INVALID_TYPE, field, `${field} must be an object`));
+    return false;
+  }
+  return true;
+}
+
+function requiredField(errors, object, field, prefix = "") {
+  const path = prefix ? `${prefix}.${field}` : field;
+  if (!Object.prototype.hasOwnProperty.call(object, field) || object[field] === undefined) {
+    errors.push(issue(ERROR_CODES.MISSING_FIELD, path, `${path} is required`));
+    return false;
+  }
+  return true;
+}
+
+function stringArray(errors, object, field, prefix = "", { nonEmpty = false } = {}) {
+  const path = prefix ? `${prefix}.${field}` : field;
+  if (!requiredField(errors, object, field, prefix)) return false;
+  if (!Array.isArray(object[field])) {
+    errors.push(issue(ERROR_CODES.INVALID_TYPE, path, `${path} must be an array`));
+    return false;
+  }
+  if (nonEmpty && object[field].length === 0) errors.push(issue(ERROR_CODES.EMPTY_FIELD, path, `${path} must be a non-empty array`));
+  for (const [index, item] of object[field].entries()) {
+    if (typeof item !== "string") errors.push(issue(ERROR_CODES.INVALID_TYPE, `${path}.${index}`, `${path}.${index} must be a string`));
+  }
+  return true;
+}
+
+function integerField(errors, object, field, prefix = "", { minimum = 0, maximum = Infinity } = {}) {
+  const path = prefix ? `${prefix}.${field}` : field;
+  if (!requiredField(errors, object, field, prefix)) return false;
+  if (!Number.isInteger(object[field]) || object[field] < minimum || object[field] > maximum) {
+    errors.push(issue(ERROR_CODES.INVALID_TYPE, path, `${path} must be an integer between ${minimum} and ${maximum}`));
+    return false;
+  }
+  return true;
+}
+
+function booleanField(errors, object, field, prefix = "") {
+  const path = prefix ? `${prefix}.${field}` : field;
+  if (!requiredField(errors, object, field, prefix)) return false;
+  if (typeof object[field] !== "boolean") {
+    errors.push(issue(ERROR_CODES.INVALID_TYPE, path, `${path} must be boolean`));
+    return false;
+  }
+  return true;
+}
+
+function validateKnownFields(errors, object, allowed, prefix) {
+  for (const key of Object.keys(object)) {
+    if (!allowed.has(key)) errors.push(issue(UNKNOWN_FIELD_CODE, `${prefix}.${key}`, `unknown field: ${prefix}.${key}`));
+  }
+}
+
+function validateOptionalStringOrNull(errors, object, field, prefix = "") {
+  const path = prefix ? `${prefix}.${field}` : field;
+  if (object[field] !== undefined && object[field] !== null && typeof object[field] !== "string") errors.push(issue(ERROR_CODES.INVALID_TYPE, path, `${path} must be a string or null`));
 }
 
 function enumError(errors, code, path, value, allowed) {
@@ -206,15 +258,20 @@ export function validateContract(value) {
     errors.push(issue(ERROR_CODES.UNSUPPORTED_VERSION, "schema_version", `unsupported schema version: ${value.schema_version}`));
   }
 
-  requiredString(errors, value, "question");
-  requiredString(errors, value, "decision");
-  requiredString(errors, value, "object");
-  requiredString(errors, value, "answer_shape");
+  for (const field of ["question", "decision", "object", "answer_shape"]) {
+    if (!Object.prototype.hasOwnProperty.call(value, field) || value[field] === undefined) errors.push(issue(ERROR_CODES.MISSING_FIELD, field, `${field} is required`));
+    else requiredString(errors, value, field);
+  }
   nonEmptyArray(errors, value, "in_scope");
   nonEmptyArray(errors, value, "out_of_scope");
 
-  if (Object.prototype.hasOwnProperty.call(value, "anchor_evidence") && !Array.isArray(value.anchor_evidence)) {
-    errors.push(issue(ERROR_CODES.INVALID_TYPE, "anchor_evidence", "anchor_evidence must be an array"));
+  if (Object.prototype.hasOwnProperty.call(value, "anchor_evidence") && value.anchor_evidence !== undefined) {
+    if (!Array.isArray(value.anchor_evidence)) errors.push(issue(ERROR_CODES.INVALID_TYPE, "anchor_evidence", "anchor_evidence must be an array"));
+    else {
+      for (const [index, item] of value.anchor_evidence.entries()) {
+        if (typeof item !== "string") errors.push(issue(ERROR_CODES.INVALID_TYPE, `anchor_evidence.${index}`, `anchor_evidence.${index} must be a string`));
+      }
+    }
   }
 
   if (!Object.prototype.hasOwnProperty.call(value, "sub_questions") || value.sub_questions === undefined) {
@@ -223,38 +280,78 @@ export function validateContract(value) {
     errors.push(issue(ERROR_CODES.EMPTY_SUB_QUESTIONS, "sub_questions", "sub_questions must not be empty"));
   } else {
     const ids = new Set();
-    for (const subQuestion of value.sub_questions) {
+    for (const [index, subQuestion] of value.sub_questions.entries()) {
       if (!isPlainObject(subQuestion) || typeof subQuestion.id !== "string" || !subQuestion.id.trim() || typeof subQuestion.question !== "string" || !subQuestion.question.trim() || typeof subQuestion.acceptance !== "string" || !subQuestion.acceptance.trim()) {
-        errors.push(issue(ERROR_CODES.INVALID_SUB_QUESTION, "sub_questions", "each sub-question needs id, question, and acceptance"));
+        errors.push(issue(ERROR_CODES.INVALID_SUB_QUESTION, `sub_questions${index ? `.${index}` : ""}`, "each sub-question needs id, question, and acceptance"));
         continue;
       }
+      validateKnownFields(errors, subQuestion, new Set(["id", "question", "acceptance"]), `sub_questions.${index}`);
       if (ids.has(subQuestion.id)) errors.push(issue(ERROR_CODES.DUPLICATE_SUB_QUESTION_ID, "sub_questions", `duplicate sub-question id: ${subQuestion.id}`));
       ids.add(subQuestion.id);
     }
   }
 
-  if (value.state !== undefined && !SUPPORTED_STATES.includes(value.state)) {
+  if (requiredObject(errors, value, "source_policy")) {
+    const sourcePolicy = value.source_policy;
+    validateKnownFields(errors, sourcePolicy, new Set(["primary", "secondary", "bridge"]), "source_policy");
+    stringArray(errors, sourcePolicy, "primary", "source_policy");
+    stringArray(errors, sourcePolicy, "secondary", "source_policy");
+    if (requiredField(errors, sourcePolicy, "bridge", "source_policy") && typeof sourcePolicy.bridge !== "string") errors.push(issue(ERROR_CODES.INVALID_TYPE, "source_policy.bridge", "source_policy.bridge must be a string"));
+  }
+
+  if (requiredObject(errors, value, "budget")) {
+    const budget = value.budget;
+    validateKnownFields(errors, budget, new Set(["max_backend_calls", "max_candidate_fetches", "max_retries_per_source", "max_bridge_fetches", "basis"]), "budget");
+    integerField(errors, budget, "max_backend_calls", "budget");
+    integerField(errors, budget, "max_candidate_fetches", "budget");
+    integerField(errors, budget, "max_retries_per_source", "budget");
+    integerField(errors, budget, "max_bridge_fetches", "budget");
+    if (requiredField(errors, budget, "basis", "budget") && (typeof budget.basis !== "string" || !budget.basis.trim())) errors.push(issue(ERROR_CODES.EMPTY_FIELD, "budget.basis", "budget.basis must be a non-empty string"));
+  }
+
+  if (requiredObject(errors, value, "freshness")) {
+    const freshness = value.freshness;
+    validateKnownFields(errors, freshness, new Set(["as_of", "class"]), "freshness");
+    if (requiredField(errors, freshness, "as_of", "freshness") && (typeof freshness.as_of !== "string" || !freshness.as_of.trim())) errors.push(issue(ERROR_CODES.EMPTY_FIELD, "freshness.as_of", "freshness.as_of must be a non-empty string"));
+    if (requiredField(errors, freshness, "class", "freshness") && (typeof freshness.class !== "string" || !freshness.class.trim())) errors.push(issue(ERROR_CODES.EMPTY_FIELD, "freshness.class", "freshness.class must be a non-empty string"));
+  }
+
+  if (requiredField(errors, value, "state") && !SUPPORTED_STATES.includes(value.state)) {
     errors.push(issue(ERROR_CODES.INVALID_STATE, "state", `invalid state: ${value.state}`));
   }
 
-  if (value.confirmation !== undefined) {
-    if (!isPlainObject(value.confirmation)) {
-      errors.push(issue(ERROR_CODES.INVALID_TYPE, "confirmation", "confirmation must be an object"));
-    } else {
+  if (requiredObject(errors, value, "confirmation")) {
+    const confirmation = value.confirmation;
+    validateKnownFields(errors, confirmation, new Set(["mode", "status", "display_hash", "confirmed_at", "confirmed_by"]), "confirmation");
+    if (requiredField(errors, confirmation, "mode", "confirmation") && typeof confirmation.mode !== "string") errors.push(issue(ERROR_CODES.INVALID_TYPE, "confirmation.mode", "confirmation.mode must be a string"));
+    if (requiredField(errors, confirmation, "status", "confirmation")) {
       const statuses = ["pending", "accepted", "rejected", "not_applicable"];
-      if (value.confirmation.status !== undefined && !statuses.includes(value.confirmation.status)) {
-        errors.push(issue(ERROR_CODES.INVALID_CONFIRMATION_STATUS, "confirmation.status", "invalid confirmation status"));
-      }
-      if (value.confirmation.display_hash !== undefined && value.confirmation.display_hash !== null && (typeof value.confirmation.display_hash !== "string" || !HASH_RE.test(value.confirmation.display_hash))) {
-        errors.push(issue(ERROR_CODES.INVALID_DISPLAY_HASH, "confirmation.display_hash", "display_hash must be a SHA-256 hex digest"));
-      }
+      if (!statuses.includes(confirmation.status)) errors.push(issue(ERROR_CODES.INVALID_CONFIRMATION_STATUS, "confirmation.status", "invalid confirmation status"));
+    }
+    if (requiredField(errors, confirmation, "display_hash", "confirmation") && confirmation.display_hash !== null && (typeof confirmation.display_hash !== "string" || !HASH_RE.test(confirmation.display_hash))) {
+      errors.push(issue(ERROR_CODES.INVALID_DISPLAY_HASH, "confirmation.display_hash", "display_hash must be a SHA-256 hex digest or null"));
+    }
+    for (const field of ["confirmed_at", "confirmed_by"]) {
+      if (requiredField(errors, confirmation, field, "confirmation")) validateOptionalStringOrNull(errors, confirmation, field, "confirmation");
     }
   }
 
-  if (value.in_scope !== undefined && !Array.isArray(value.in_scope)) errors.push(issue(ERROR_CODES.INVALID_TYPE, "in_scope", "in_scope must be an array"));
-  if (value.out_of_scope !== undefined && !Array.isArray(value.out_of_scope)) errors.push(issue(ERROR_CODES.INVALID_TYPE, "out_of_scope", "out_of_scope must be an array"));
-  if (value.budget !== undefined && !isPlainObject(value.budget)) errors.push(issue(ERROR_CODES.INVALID_TYPE, "budget", "budget must be an object"));
-  if (value.freshness !== undefined && (!isPlainObject(value.freshness) || typeof value.freshness.as_of !== "string" || !value.freshness.as_of.trim())) errors.push(issue(ERROR_CODES.INVALID_TYPE, "freshness", "freshness.as_of must be a string"));
+  if (requiredObject(errors, value, "query_strategy")) {
+    const strategy = value.query_strategy;
+    validateKnownFields(errors, strategy, new Set(["seeds_per_sub_question", "zero_result_relaxations", "primary_intention", "secondary_intentions", "stop_rules"]), "query_strategy");
+    integerField(errors, strategy, "seeds_per_sub_question", "query_strategy");
+    integerField(errors, strategy, "zero_result_relaxations", "query_strategy", { maximum: 1 });
+    if (requiredField(errors, strategy, "primary_intention", "query_strategy") && typeof strategy.primary_intention !== "string") errors.push(issue(ERROR_CODES.INVALID_TYPE, "query_strategy.primary_intention", "query_strategy.primary_intention must be a string"));
+    stringArray(errors, strategy, "secondary_intentions", "query_strategy");
+    stringArray(errors, strategy, "stop_rules", "query_strategy", { nonEmpty: true });
+  }
+
+  if (requiredObject(errors, value, "deep_requirements")) {
+    const deep = value.deep_requirements;
+    validateKnownFields(errors, deep, new Set(["minimum_independent_sources_per_sub_question", "adversarial_round_required"]), "deep_requirements");
+    integerField(errors, deep, "minimum_independent_sources_per_sub_question", "deep_requirements");
+    booleanField(errors, deep, "adversarial_round_required", "deep_requirements");
+  }
 
   return result(errors);
 }
@@ -334,6 +431,7 @@ function parseScalar(value) {
 
 function prepareYamlLines(text) {
   if (typeof text !== "string") throw parseError(ERROR_CODES.YAML_PARSE_ERROR, "YAML input must be text");
+  if (Buffer.byteLength(text, "utf8") > YAML_MAX_BYTES) throw parseError(ERROR_CODES.YAML_PARSE_ERROR, `YAML input exceeds ${YAML_MAX_BYTES} bytes`);
   const lines = [];
   for (const raw of text.replace(/\r\n?/g, "\n").split("\n")) {
     if (raw.includes("\t")) throw parseError(ERROR_CODES.YAML_UNSUPPORTED_FEATURE, "tabs are not supported");
@@ -357,7 +455,7 @@ function parseKey(raw) {
   return raw[0] === '"' || raw[0] === "'" ? parseQuoted(raw) : raw;
 }
 
-function parseEntry(lines, state, indent) {
+function parseEntry(lines, state, indent, depth) {
   const line = lines[state.index];
   if (!line || line.indent !== indent) throw parseError(ERROR_CODES.YAML_PARSE_ERROR, "invalid mapping indentation");
   const split = splitMapping(line.content);
@@ -367,7 +465,7 @@ function parseEntry(lines, state, indent) {
   let value;
   if (split[1] === "") {
     const next = lines[state.index];
-    if (next && next.indent > indent) value = parseBlock(lines, state, next.indent);
+    if (next && next.indent > indent) value = parseBlock(lines, state, next.indent, depth + 1);
     else value = null;
   } else {
     value = parseScalar(split[1]);
@@ -375,20 +473,20 @@ function parseEntry(lines, state, indent) {
   return [key, value];
 }
 
-function parseMapping(lines, state, indent) {
+function parseMapping(lines, state, indent, depth) {
   const object = {};
   while (state.index < lines.length) {
     const line = lines[state.index];
     if (line.indent < indent) break;
     if (line.indent !== indent || line.content.startsWith("-")) break;
-    const [key, value] = parseEntry(lines, state, indent);
+    const [key, value] = parseEntry(lines, state, indent, depth);
     if (Object.prototype.hasOwnProperty.call(object, key)) throw parseError(ERROR_CODES.YAML_DUPLICATE_KEY, `duplicate key: ${key}`);
     object[key] = value;
   }
   return object;
 }
 
-function parseSequence(lines, state, indent) {
+function parseSequence(lines, state, indent, depth) {
   const array = [];
   while (state.index < lines.length) {
     const line = lines[state.index];
@@ -398,7 +496,7 @@ function parseSequence(lines, state, indent) {
     state.index += 1;
     if (!rest) {
       const next = lines[state.index];
-      array.push(next && next.indent > indent ? parseBlock(lines, state, next.indent) : null);
+      array.push(next && next.indent > indent ? parseBlock(lines, state, next.indent, depth + 1) : null);
       continue;
     }
     const inline = splitMapping(rest);
@@ -411,7 +509,7 @@ function parseSequence(lines, state, indent) {
     let firstValue;
     if (inline[1] === "") {
       const next = lines[state.index];
-      firstValue = next && next.indent > indent ? parseBlock(lines, state, next.indent) : null;
+      firstValue = next && next.indent > indent ? parseBlock(lines, state, next.indent, depth + 1) : null;
     } else {
       firstValue = parseScalar(inline[1]);
     }
@@ -419,7 +517,7 @@ function parseSequence(lines, state, indent) {
     while (state.index < lines.length && lines[state.index].indent > indent) {
       const nextIndent = lines[state.index].indent;
       if (nextIndent !== indent + 2 || lines[state.index].content.startsWith("-")) throw parseError(ERROR_CODES.YAML_PARSE_ERROR, "invalid sequence mapping indentation");
-      const [key, value] = parseEntry(lines, state, nextIndent);
+      const [key, value] = parseEntry(lines, state, nextIndent, depth);
       if (Object.prototype.hasOwnProperty.call(object, key)) throw parseError(ERROR_CODES.YAML_DUPLICATE_KEY, `duplicate key: ${key}`);
       object[key] = value;
     }
@@ -428,11 +526,12 @@ function parseSequence(lines, state, indent) {
   return array;
 }
 
-function parseBlock(lines, state, indent) {
+function parseBlock(lines, state, indent, depth = 0) {
+  if (depth > YAML_MAX_DEPTH) throw parseError(ERROR_CODES.YAML_PARSE_ERROR, `YAML nesting exceeds ${YAML_MAX_DEPTH} levels`);
   if (state.index >= lines.length || lines[state.index].indent !== indent) throw parseError(ERROR_CODES.YAML_PARSE_ERROR, "invalid nested block");
   return lines[state.index].content === "-" || lines[state.index].content.startsWith("- ")
-    ? parseSequence(lines, state, indent)
-    : parseMapping(lines, state, indent);
+    ? parseSequence(lines, state, indent, depth)
+    : parseMapping(lines, state, indent, depth);
 }
 
 export function parseYaml(text) {
@@ -443,7 +542,7 @@ export function parseYaml(text) {
   if (lines[0].content === "[]") return [];
   if (lines[0].content.startsWith("[") || lines[0].content.startsWith("{")) throw parseError(ERROR_CODES.YAML_UNSUPPORTED_FEATURE, "flow collections are not supported");
   const state = { index: 0 };
-  const value = parseBlock(lines, state, 0);
+  const value = parseBlock(lines, state, 0, 0);
   if (state.index !== lines.length) throw parseError(ERROR_CODES.YAML_PARSE_ERROR, "unexpected trailing YAML content");
   return value;
 }
@@ -461,7 +560,8 @@ function formatScalar(value) {
   throw parseError(ERROR_CODES.YAML_PARSE_ERROR, `unsupported scalar type: ${typeof value}`);
 }
 
-function emitValue(value, indent, lines) {
+function emitValue(value, indent, lines, depth = 0) {
+  if (depth > YAML_MAX_DEPTH) throw parseError(ERROR_CODES.YAML_PARSE_ERROR, `YAML nesting exceeds ${YAML_MAX_DEPTH} levels`);
   const prefix = " ".repeat(indent);
   if (Array.isArray(value)) {
     if (value.length === 0) {
@@ -476,7 +576,7 @@ function emitValue(value, indent, lines) {
         }
         if (Array.isArray(item)) {
           lines.push(`${prefix}-`);
-          emitValue(item, indent + 2, lines);
+          emitValue(item, indent + 2, lines, depth + 1);
           continue;
         }
         const keys = Object.keys(item).sort();
@@ -487,7 +587,7 @@ function emitValue(value, indent, lines) {
           lines.push(`${prefix}- ${formatKey(first)}: ${rendered}`);
         } else {
           lines.push(`${prefix}- ${formatKey(first)}:`);
-          emitValue(firstValue, indent + 4, lines);
+          emitValue(firstValue, indent + 4, lines, depth + 1);
         }
         for (const key of keys.slice(1)) {
           const child = item[key];
@@ -496,7 +596,7 @@ function emitValue(value, indent, lines) {
             lines.push(`${" ".repeat(indent + 2)}${formatKey(key)}: ${rendered}`);
           } else {
             lines.push(`${" ".repeat(indent + 2)}${formatKey(key)}:`);
-            emitValue(child, indent + 4, lines);
+            emitValue(child, indent + 4, lines, depth + 1);
           }
         }
       } else {
@@ -518,7 +618,7 @@ function emitValue(value, indent, lines) {
         lines.push(`${prefix}${formatKey(key)}: ${rendered}`);
       } else {
         lines.push(`${prefix}${formatKey(key)}:`);
-        emitValue(child, indent + 2, lines);
+        emitValue(child, indent + 2, lines, depth + 1);
       }
     }
     return;
@@ -528,8 +628,10 @@ function emitValue(value, indent, lines) {
 
 export function serializeYaml(value) {
   const lines = [];
-  emitValue(value, 0, lines);
-  return `${lines.join("\n")}\n`;
+  emitValue(value, 0, lines, 0);
+  const output = `${lines.join("\n")}\n`;
+  if (Buffer.byteLength(output, "utf8") > YAML_MAX_BYTES) throw parseError(ERROR_CODES.YAML_PARSE_ERROR, `serialized YAML exceeds ${YAML_MAX_BYTES} bytes`);
+  return output;
 }
 
 export function yamlRoundTrip(value) {
@@ -644,14 +746,24 @@ export function validateClaimRecord(value) {
   return result(errors);
 }
 
-export const TRUSTED_AUTHORITIES = Object.freeze({
-  version: "1.0",
-  authorities: [
-    { id: "ghostty", name: "Ghostty official", domains: ["ghostty.org"] },
-    { id: "github", name: "GitHub", domains: ["github.com", "api.github.com", "raw.githubusercontent.com"] },
-    { id: "reddit", name: "Reddit", domains: ["reddit.com", "www.reddit.com"] },
-  ],
-});
+function loadTrustedAuthorities() {
+  try {
+    const parsed = JSON.parse(readFileSync(new URL("../../schemas/trusted-authorities.json", import.meta.url), "utf8"));
+    if (!isPlainObject(parsed) || !Array.isArray(parsed.authorities)) return Object.freeze({ version: null, authorities: Object.freeze([]) });
+    return Object.freeze({
+      ...parsed,
+      authorities: Object.freeze(parsed.authorities.map((authority) => Object.freeze({
+        ...authority,
+        domains: Array.isArray(authority.domains) ? Object.freeze([...authority.domains]) : authority.domains,
+      }))),
+    });
+  } catch {
+    // Missing or invalid registry is fail-closed: official evidence cannot validate.
+    return Object.freeze({ version: null, authorities: Object.freeze([]) });
+  }
+}
+
+export const TRUSTED_AUTHORITIES = loadTrustedAuthorities();
 
 export function validateAuthorityRegistry(value) {
   const errors = [];
@@ -705,7 +817,7 @@ export function validateEventRecord(value) {
   if (value.contract_hash !== undefined && (typeof value.contract_hash !== "string" || !HASH_RE.test(value.contract_hash))) errors.push(issue(ERROR_CODES.EVENT_CONTRACT_HASH_INVALID, "contract_hash", "contract_hash must be a SHA-256 hex digest"));
   if (value.scope_key !== undefined && (typeof value.scope_key !== "string" || value.scope_key.trim() === "")) errors.push(issue(ERROR_CODES.EVENT_REQUIRED_FIELD, "scope_key", "scope_key must be non-empty"));
   if (value.evidence_capability !== undefined) enumError(errors, ERROR_CODES.RECORD_UNKNOWN_ENUM, "evidence_capability", value.evidence_capability, EVIDENCE_CAPABILITIES);
-  if (value.evidence_capability === "evidence_grade" && !value.parent_event_id && !value.discovery_evidence_id) errors.push(issue(ERROR_CODES.EVENT_UNBOUND_FOLLOWUP, "parent_event_id", "evidence-grade follow-up requires parent_event_id and discovery_evidence_id"));
+  if (value.evidence_capability === "evidence_grade" && !value.parent_event_id && !value.discovery_evidence_id) errors.push(issue(ERROR_CODES.EVENT_UNBOUND_FOLLOWUP, "parent_event_id", "evidence-grade follow-up requires parent_event_id or discovery_evidence_id"));
   if (value.authority_registry_id !== undefined && value.authority_registry_id !== null) {
     const known = TRUSTED_AUTHORITIES.authorities.some((authority) => authority.id === value.authority_registry_id);
     if (!known) errors.push(issue(ERROR_CODES.EVENT_UNKNOWN_AUTHORITY, "authority_registry_id", "unknown authority registry id"));
@@ -724,7 +836,7 @@ export function validateEventRecord(value) {
     const observed = finalUrlStatus(value.final_url);
     if (value.final_url_status === "clean" && observed.status !== "clean") errors.push(issue(ERROR_CODES.EVENT_UNSAFE_FINAL_URL, "final_url", "final_url status contradicts URL safety"));
   }
-  if (value.identity_status !== undefined && !["clean", "verified", "failed", "unverified"].includes(value.identity_status)) errors.push(issue(ERROR_CODES.RECORD_UNKNOWN_ENUM, "identity_status", "invalid identity_status"));
+  if (value.identity_status !== undefined && !["verified", "failed", "unverified"].includes(value.identity_status)) errors.push(issue(ERROR_CODES.RECORD_UNKNOWN_ENUM, "identity_status", "invalid identity_status"));
   if (value.degraded !== undefined && typeof value.degraded !== "boolean") errors.push(issue(ERROR_CODES.RECORD_INVALID_TYPE, "degraded", "degraded must be boolean"));
   return result(errors);
 }

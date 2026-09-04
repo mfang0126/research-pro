@@ -91,6 +91,7 @@ const SYNCED_REL_PATHS = [
   "scripts/lib/archive.mjs",
   "scripts/lib/url_policy.mjs",
   "scripts/lib/output_guard.mjs",
+  "scripts/lib/source_integrity.mjs",
 ];
 
 /** Minimal but complete contract based on plan §2.2. */
@@ -154,6 +155,45 @@ test("validateContract accepts a complete research contract", () => {
   assert.deepEqual(r.errors, []);
 });
 
+test("validateContract mirrors the contract schema required and additional-property rules", () => {
+  const schema = JSON.parse(readFileSync(path.join(ROOT, "schemas", "search-contract.schema.json"), "utf8"));
+  for (const field of schema.required) {
+    const candidate = validContract();
+    delete candidate[field];
+    const r = validateContract(candidate);
+    assert.equal(r.ok, false, `${field} must be required by the runtime validator`);
+    assert.ok(
+      codesOf(r).some((code) => code === `MISSING_FIELD@${field}`),
+      `expected MISSING_FIELD@${field}, got ${JSON.stringify(codesOf(r))}`,
+    );
+  }
+  for (const field of ["estimand", "evidence_policy", "output_policy", "metadata", "created_at", "updated_at"]) {
+    const r = validateContract(validContract({ [field]: "future-only" }));
+    assert.ok(codesOf(r).some((code) => code === `UNKNOWN_TOP_LEVEL_FIELD@${field}`), `${field} must not drift outside the schema`);
+  }
+});
+
+test("validateContract enforces nested required contract fields", () => {
+  const cases = [
+    ["source_policy", "primary"],
+    ["budget", "max_backend_calls"],
+    ["freshness", "as_of"],
+    ["confirmation", "status"],
+    ["query_strategy", "stop_rules"],
+    ["deep_requirements", "adversarial_round_required"],
+  ];
+  for (const [container, field] of cases) {
+    const candidate = validContract({ [container]: { ...validContract()[container] } });
+    delete candidate[container][field];
+    const r = validateContract(candidate);
+    assert.equal(r.ok, false, `${container}.${field} must be required`);
+    assert.ok(
+      codesOf(r).some((code) => code === `MISSING_FIELD@${container}.${field}`),
+      `expected MISSING_FIELD@${container}.${field}, got ${JSON.stringify(codesOf(r))}`,
+    );
+  }
+});
+
 test("validateContract rejects missing required boundary fields with stable codes (I-005)", () => {
   for (const field of ["decision", "object", "in_scope", "out_of_scope", "answer_shape", "question"]) {
     const c = validContract();
@@ -164,6 +204,15 @@ test("validateContract rejects missing required boundary fields with stable code
       codesOf(r).some((c2) => c2 === `${ERROR_CODES.MISSING_FIELD}@${field}`),
       `expected MISSING_FIELD@${field}, got ${JSON.stringify(codesOf(r))}`
     );
+  }
+});
+
+test("validateContract rejects required fields explicitly set to undefined", () => {
+  for (const field of ["question", "decision", "object", "answer_shape", "in_scope", "out_of_scope", "sub_questions"]) {
+    const candidate = validContract({ [field]: undefined });
+    const r = validateContract(candidate);
+    assert.equal(r.ok, false, `${field}=undefined must fail validation`);
+    assert.ok(codesOf(r).some((code) => code === `MISSING_FIELD@${field}`), JSON.stringify(codesOf(r)));
   }
 });
 
@@ -394,6 +443,16 @@ test("restricted YAML: unsupported constructs are rejected with stable codes, ne
   reject("a: \"unterminated\n", "YAML_PARSE_ERROR");
 });
 
+test("restricted YAML: depth and byte limits fail closed with YAML_PARSE_ERROR", () => {
+  const depth = 140;
+  const deep = [
+    ...Array.from({ length: depth }, (_, index) => `${" ".repeat(index * 2)}level${index}:`),
+    `${" ".repeat(depth * 2)}value: 1`,
+  ].join("\n");
+  assert.throws(() => parseYaml(deep), (error) => error.code === ERROR_CODES.YAML_PARSE_ERROR);
+  assert.throws(() => parseYaml(`value: ${"x".repeat(300_000)}\n`), (error) => error.code === ERROR_CODES.YAML_PARSE_ERROR);
+});
+
 test("restricted YAML: full-line comments are allowed and do not affect value determinism", () => {
   const c = validContract();
   const withComments = "# heading comment\n" + serializeYaml(c) + "\n# trailing comment\n";
@@ -421,6 +480,10 @@ test("URL policy: classifyUrl rejects unsafe schemes, credentials, loopback and 
   assert.equal(classifyUrl("http://192.168.1.10/x").status, "private");
   assert.equal(classifyUrl("http://10.0.0.5/x").status, "private");
   assert.equal(classifyUrl("http://172.16.3.9/x").status, "private");
+  assert.equal(classifyUrl("http://169.254.169.254/latest/meta-data/").status, "private");
+  assert.equal(classifyUrl("http://[fd00::1]/").status, "private");
+  assert.equal(classifyUrl("http://[fe80::1]/").status, "private");
+  assert.equal(classifyUrl("http://[::ffff:127.0.0.1]/").status, "loopback");
   assert.throws(() => classifyUrl("garbage url"), (e) => e.code === "URL_MALFORMED");
 });
 
@@ -437,6 +500,10 @@ test("URL policy: finalUrlStatus returns a stable status value (I-034)", () => {
   assert.equal(finalUrlStatus("https://user:pw@example.com/").status, "credential_present");
   assert.equal(finalUrlStatus("http://127.0.0.1/x").status, "loopback");
   assert.equal(finalUrlStatus("http://192.168.0.4/x").status, "private");
+  assert.equal(finalUrlStatus("http://169.254.169.254/latest/meta-data/").status, "private");
+  assert.equal(finalUrlStatus("http://[fd00::1]/").status, "private");
+  assert.equal(finalUrlStatus("http://[fe80::1]/").status, "private");
+  assert.equal(finalUrlStatus("http://[::ffff:127.0.0.1]/").status, "loopback");
   assert.equal(finalUrlStatus("totally broken").status, "malformed");
 });
 
@@ -619,6 +686,8 @@ test("typed records: claim record validation (I-023)", () => {
 test("authority registry: data file matches registry schema and ids are unique (I-032)", () => {
   const r = validateAuthorityRegistry(TRUSTED_AUTHORITIES);
   assert.equal(r.ok, true, JSON.stringify(r.errors));
+  const onDisk = JSON.parse(readFileSync(path.join(ROOT, "schemas", "trusted-authorities.json"), "utf8"));
+  assert.deepEqual(TRUSTED_AUTHORITIES, onDisk, "runtime authority registry must be loaded from the synchronized data file");
   assert.equal(TRUSTED_AUTHORITIES.version, "1.0");
   const ids = TRUSTED_AUTHORITIES.authorities.map((a) => a.id);
   assert.equal(new Set(ids).size, ids.length, "registry ids must be unique");
@@ -685,6 +754,13 @@ test("event records: final_url_status is an allowed enum and unsafe final URLs a
   assert.ok(codesOf(unsafe).some((c) => c === `EVENT_UNSAFE_FINAL_URL@final_url`));
 });
 
+test("event records: identity_status uses the source-integrity vocabulary", () => {
+  assert.equal(validateEventRecord(validEvent({ identity_status: "verified" })).ok, true);
+  const legacy = validateEventRecord(validEvent({ identity_status: "clean" }));
+  assert.equal(legacy.ok, false);
+  assert.ok(codesOf(legacy).some((c) => c === "RECORD_UNKNOWN_ENUM@identity_status"));
+});
+
 test("root↔nested synced files are byte-identical (I-015/I-021)", () => {
   for (const rel of SYNCED_REL_PATHS) {
     const rootBytes = readFileSync(path.join(ROOT, rel));
@@ -738,7 +814,7 @@ function validEvent(overrides = {}) {
     requested_url: "https://ghostty.org/docs/config/reference",
     returned_url: "https://ghostty.org/docs/config/reference",
     final_url: "https://ghostty.org/docs/config/reference",
-    identity_status: "clean",
+    identity_status: "verified",
     content_type: "text/html",
     content_sha256: "c".repeat(64),
     result_count: 5,

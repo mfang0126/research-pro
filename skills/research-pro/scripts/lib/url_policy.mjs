@@ -9,6 +9,8 @@
  * callers can distinguish "cannot parse" from "parsed but unsafe".
  */
 
+import { isIP } from "node:net";
+
 export const URL_MALFORMED = "URL_MALFORMED";
 
 function urlError(code, message) {
@@ -47,26 +49,71 @@ export function canonicalizeUrl(input) {
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
-function isLoopbackHost(host) {
-  const h = host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
-  if (h === "localhost" || h === "::1" || h === "0.0.0.0") return true;
-  if (h === "::ffff:127.0.0.1") return true;
-  if (IPV4.test(h)) {
-    const parts = h.split(".");
-    if (parts.some((p) => /^\d{1,3}$/.test(p) && Number(p) > 255)) return false;
-    return Number(parts[0]) === 127;
-  }
-  return false;
+function normalizeHost(host) {
+  return String(host || "").toLowerCase().replace(/^\[|\]$/g, "");
 }
 
-function isPrivateHost(host) {
-  const h = host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
-  if (!IPV4.test(h)) return false;
-  const [a, b] = h.split(".").map(Number);
-  if (a === 10) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  return false;
+function ipv4Parts(host) {
+  if (!IPV4.test(host)) return null;
+  const parts = host.split(".").map(Number);
+  return parts.every((part) => part >= 0 && part <= 255) ? parts : null;
+}
+
+function ipv4Safety(parts) {
+  if (!parts) return null;
+  const [a, b] = parts;
+  if (a === 127 || (a === 0 && parts.every((part) => part === 0))) return "loopback";
+  if (a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254)) return "private";
+  return null;
+}
+
+function ipv6Hextets(host) {
+  const h = normalizeHost(host);
+  if (isIP(h) !== 6) return null;
+  const [leftText, rightText] = h.split("::");
+  const expand = (text) => {
+    if (!text) return [];
+    const pieces = text.split(":");
+    const result = [];
+    for (const piece of pieces) {
+      if (piece.includes(".")) {
+        const parts = ipv4Parts(piece);
+        if (!parts) return null;
+        result.push((parts[0] << 8) | parts[1], (parts[2] << 8) | parts[3]);
+      } else if (/^[0-9a-f]{1,4}$/i.test(piece)) {
+        result.push(Number.parseInt(piece, 16));
+      } else {
+        return null;
+      }
+    }
+    return result;
+  };
+  const left = expand(leftText);
+  const right = expand(rightText);
+  if (!left || !right) return null;
+  if (h.includes("::")) {
+    const zeros = 8 - left.length - right.length;
+    if (zeros < 1) return null;
+    return [...left, ...Array.from({ length: zeros }, () => 0), ...right];
+  }
+  return left.length === 8 ? left : null;
+}
+
+function ipv6Safety(host) {
+  const parts = ipv6Hextets(host);
+  if (!parts) return null;
+  const mapped = parts.slice(0, 5).every((part) => part === 0) && parts[5] === 0xffff;
+  if (mapped) return ipv4Safety([(parts[6] >> 8) & 0xff, parts[6] & 0xff, (parts[7] >> 8) & 0xff, parts[7] & 0xff]);
+  if (parts.every((part) => part === 0) || (parts.slice(0, 7).every((part) => part === 0) && parts[7] === 1)) return "loopback";
+  if ((parts[0] & 0xfe00) === 0xfc00) return "private"; // fc00::/7 ULA
+  if ((parts[0] & 0xffc0) === 0xfe80) return "private"; // fe80::/10 link-local
+  return null;
+}
+
+function hostSafety(host) {
+  const h = normalizeHost(host);
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) return "loopback";
+  return ipv4Safety(ipv4Parts(h)) || ipv6Safety(h);
 }
 
 /**
@@ -80,8 +127,8 @@ export function classifyUrl(input) {
   if (scheme !== "http:" && scheme !== "https:") return { status: "unsafe_scheme", scheme };
   if (u.username || u.password) return { status: "credential_in_url" };
   const host = u.hostname.toLowerCase();
-  if (isLoopbackHost(host)) return { status: "loopback", host };
-  if (isPrivateHost(host)) return { status: "private", host };
+  const hostStatus = hostSafety(host);
+  if (hostStatus) return { status: hostStatus, host };
   return { status: "clean" };
 }
 
@@ -130,7 +177,7 @@ export function finalUrlStatus(input) {
   if (scheme !== "http:" && scheme !== "https:") return { status: "unsafe_scheme" };
   if (u.username || u.password) return { status: "credential_present" };
   const host = u.hostname.toLowerCase();
-  if (isLoopbackHost(host)) return { status: "loopback" };
-  if (isPrivateHost(host)) return { status: "private" };
+  const hostStatus = hostSafety(host);
+  if (hostStatus) return { status: hostStatus };
   return { status: "clean" };
 }

@@ -127,10 +127,18 @@ test("final URL safety rejects unsafe, private, credentialed, and sensitive URLs
   assert.equal(classifyFinalUrl("https://user:pw@example.com/docs").status, "credential_present");
   assert.equal(classifyFinalUrl("http://127.0.0.1:8080/").status, "loopback");
   assert.equal(classifyFinalUrl("http://192.168.1.2/").status, "private");
+  assert.equal(classifyFinalUrl("http://169.254.169.254/latest/meta-data/").status, "private");
   const sensitive = classifyFinalUrl("https://example.com/?q=ok&api_key=redacted");
   assert.equal(sensitive.final_url_status, "rejected");
   assert.ok(!sanitizeFinalUrl("https://example.com/?q=ok&api_key=redacted").includes("redacted"));
   assert.equal(classifyFinalUrl("not a URL").status, "malformed");
+});
+
+test("final URL safety rejects oversized URLs as malformed without throwing", () => {
+  const result = classifyFinalUrl(`https://example.com/${"x".repeat(5000)}`);
+  assert.equal(result.status, "malformed");
+  assert.equal(result.final_url_status, "rejected");
+  assert.equal(result.sanitized_url, null);
 });
 
 test("follow-up provenance requires lineage for evidence-grade claims", () => {
