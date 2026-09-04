@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-pro/search-contract.schema.json",
+  "title": "Research Pro Search Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "question", "decision", "object", "in_scope", "out_of_scope", "answer_shape", "sub_questions", "source_policy", "budget", "freshness", "state", "confirmation", "query_strategy", "deep_requirements"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "question": {"type": "string", "minLength": 1},
+    "decision": {"type": "string", "minLength": 1},
+    "object": {"type": "string", "minLength": 1},
+    "in_scope": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "out_of_scope": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "answer_shape": {"type": "string", "minLength": 1},
+    "anchor_evidence": {"type": "array", "items": {"type": "string"}},
+    "sub_questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "question", "acceptance"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "question": {"type": "string", "minLength": 1},
+          "acceptance": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "source_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary", "bridge"],
+      "properties": {
+        "primary": {"type": "array", "items": {"type": "string"}},
+        "secondary": {"type": "array", "items": {"type": "string"}},
+        "bridge": {"type": "string"}
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_backend_calls", "max_candidate_fetches", "max_retries_per_source", "max_bridge_fetches", "basis"],
+      "properties": {
+        "max_backend_calls": {"type": "integer", "minimum": 0},
+        "max_candidate_fetches": {"type": "integer", "minimum": 0},
+        "max_retries_per_source": {"type": "integer", "minimum": 0},
+        "max_bridge_fetches": {"type": "integer", "minimum": 0},
+        "basis": {"type": "string", "minLength": 1}
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["as_of", "class"],
+      "properties": {"as_of": {"type": "string", "minLength": 1}, "class": {"type": "string", "minLength": 1}}
+    },
+    "state": {"enum": ["DRAFT", "CONTRACT_ACCEPTED", "SEARCHING", "DONE", "PARTIAL", "FAILED", "CANCELLED"]},
+    "confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "status", "display_hash", "confirmed_at", "confirmed_by"],
+      "properties": {
+        "mode": {"type": "string"},
+        "status": {"enum": ["pending", "accepted", "rejected", "not_applicable"]},
+        "display_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "confirmed_at": {"type": ["string", "null"]},
+        "confirmed_by": {"type": ["string", "null"]}
+      }
+    },
+    "query_strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seeds_per_sub_question", "zero_result_relaxations", "primary_intention", "secondary_intentions", "stop_rules"],
+      "properties": {
+        "seeds_per_sub_question": {"type": "integer", "minimum": 0},
+        "zero_result_relaxations": {"type": "integer", "minimum": 0, "maximum": 1},
+        "primary_intention": {"type": "string"},
+        "secondary_intentions": {"type": "array", "items": {"type": "string"}},
+        "stop_rules": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      }
+    },
+    "deep_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_independent_sources_per_sub_question", "adversarial_round_required"],
+      "properties": {
+        "minimum_independent_sources_per_sub_question": {"type": "integer", "minimum": 0},
+        "adversarial_round_required": {"type": "boolean"}
+      }
+    }
+  }
+}

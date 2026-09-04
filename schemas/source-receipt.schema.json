@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-pro/source-receipt.schema.json",
+  "title": "Research Pro Source Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["receipt_id", "event_id", "requested_url", "returned_url", "content_kind", "content_sha256", "content_bytes", "raw_path", "identity_status", "final_url_status", "evidence_capability", "captured_at", "redacted"],
+  "properties": {
+    "receipt_id": {"type": "string", "minLength": 1},
+    "event_id": {"type": "string", "minLength": 1},
+    "requested_url": {"type": "string", "minLength": 1},
+    "returned_url": {"type": ["string", "null"]},
+    "content_kind": {"enum": ["api_json", "raw_text", "html_markdown", "empty", "invalid"]},
+    "content_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "content_bytes": {"type": "integer", "minimum": 0},
+    "raw_path": {"type": ["string", "null"]},
+    "identity_status": {"enum": ["clean", "verified", "failed", "unverified"]},
+    "final_url_status": {"enum": ["clean", "unsafe_scheme", "credential_present", "loopback", "private", "malformed"]},
+    "evidence_capability": {"enum": ["none", "discovery_only", "official_discovery_only", "page_body", "preview_extracted", "social_lead_only", "evidence_grade"]},
+    "captured_at": {"type": "string", "minLength": 1},
+    "redacted": {"type": "boolean"},
+    "parent_event_id": {"type": ["string", "null"]},
+    "discovery_evidence_id": {"type": ["string", "null"]},
+    "authority_registry_id": {"type": ["string", "null"]}
+  }
+}

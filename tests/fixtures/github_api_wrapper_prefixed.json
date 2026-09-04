@@ -1,0 +1,7 @@
+{
+  "case": "wrapper_prefixed_api_json",
+  "fixture_version": "1.0",
+  "raw": "# README\n{\"full_name\":\"octo/demo\",\"html_url\":\"https://github.com/octo/demo\"}",
+  "expected_content_kind": "api_transport_invalid",
+  "expected_reason_class": "wrapper_prefix"
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-pro/source.schema.json",
+  "title": "Research Pro Source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "publisher", "url", "source_type", "published_at", "accessed_at", "authority", "scope_limit", "canonical_source_id", "independence_group", "derived_from", "derivation_kind", "independence_status"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "publisher": {"type": "string", "minLength": 1},
+    "url": {"type": "string", "format": "uri", "pattern": "^https?://"},
+    "source_type": {"type": "string", "minLength": 1},
+    "published_at": {"type": ["string", "null"]},
+    "accessed_at": {"type": "string", "minLength": 1},
+    "authority": {"type": "string", "minLength": 1},
+    "scope_limit": {"type": "string", "minLength": 1},
+    "canonical_source_id": {"type": "string", "minLength": 1},
+    "independence_group": {"type": "string", "minLength": 1},
+    "derived_from": {"type": "array", "items": {"type": "string"}},
+    "derivation_kind": {"type": ["string", "null"]},
+    "independence_status": {"enum": ["independent", "derived", "unknown", "not_applicable"]}
+  }
+}

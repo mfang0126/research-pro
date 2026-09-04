@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-pro/claim.schema.json",
+  "title": "Research Pro Claim",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "claim", "claim_type", "fact_subtype", "evidence_ids", "source_ids", "confidence", "counter_evidence_ids", "limitations", "retrieval_status", "support_status", "status", "reviewed_by", "reviewed_at"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "claim": {"type": "string", "minLength": 1},
+    "claim_type": {"enum": ["fact", "evidence_backed_inference", "recommendation", "comparison", "limitation", "method", "unknown"]},
+    "fact_subtype": {"type": ["string", "null"]},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "source_ids": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"enum": ["low", "medium", "high", "unknown"]},
+    "counter_evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "retrieval_status": {"type": "string", "minLength": 1},
+    "support_status": {"enum": ["proposed", "supported", "corroborated", "disputed", "retracted"]},
+    "status": {"enum": ["open", "reviewed", "rejected", "retracted"]},
+    "reviewed_by": {"type": ["string", "null"]},
+    "reviewed_at": {"type": ["string", "null"]},
+    "decision_risk": {"type": ["string", "null"]},
+    "reversibility": {"type": ["string", "null"]},
+    "assumptions": {"type": "array", "items": {"type": "string"}},
+    "alternatives": {"type": "array", "items": {"type": "string"}}
+  }
+}

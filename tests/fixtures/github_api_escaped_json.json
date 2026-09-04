@@ -1,0 +1,7 @@
+{
+  "case": "escaped_api_json",
+  "fixture_version": "1.0",
+  "raw": "{\"total\\_count\": 1, \"items\": []}",
+  "expected_content_kind": "api_transport_invalid",
+  "expected_reason_class": "junk_escape"
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-pro/relation.schema.json",
+  "title": "Research Pro Evidence Relation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "from_id", "to_id", "relation_type", "entailment", "polarity", "support_role", "rationale", "scope_match", "review_status"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "from_id": {"type": "string", "minLength": 1},
+    "to_id": {"type": "string", "minLength": 1},
+    "relation_type": {"enum": ["supports", "contradicts", "contextualizes", "qualifies", "duplicates"]},
+    "entailment": {"enum": ["direct", "partial", "indirect", "none"]},
+    "polarity": {"enum": ["positive", "negative", "neutral"]},
+    "support_role": {"enum": ["necessary", "supplementary", "contextual"]},
+    "rationale": {"type": "string", "minLength": 1},
+    "scope_match": {"enum": ["full", "partial", "mismatch"]},
+    "review_status": {"enum": ["proposed", "reviewed", "rejected"]}
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "authorities": [
+    {
+      "id": "ghostty",
+      "name": "Ghostty official",
+      "domains": ["ghostty.org"]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "domains": ["github.com", "api.github.com", "raw.githubusercontent.com"]
+    },
+    {
+      "id": "reddit",
+      "name": "Reddit",
+      "domains": ["reddit.com", "www.reddit.com"]
+    }
+  ]
+}

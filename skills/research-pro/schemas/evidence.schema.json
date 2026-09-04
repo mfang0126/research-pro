@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-pro/evidence.schema.json",
+  "title": "Research Pro Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "source_id", "locator", "excerpt_or_value", "observation", "directness", "evidence_strength", "verified_at", "status"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "source_id": {"type": "string", "minLength": 1},
+    "locator": {"type": "string", "minLength": 1},
+    "excerpt_or_value": {"type": "string", "minLength": 1},
+    "observation": {"type": "string", "minLength": 1},
+    "directness": {"enum": ["direct", "indirect", "contextual"]},
+    "evidence_strength": {"enum": ["weak", "moderate", "strong"]},
+    "verified_at": {"type": "string", "minLength": 1},
+    "status": {"enum": ["proposed", "verified", "rejected", "unverified", "quarantined"]}
+  }
+}
