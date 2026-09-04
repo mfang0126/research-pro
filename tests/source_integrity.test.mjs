@@ -30,6 +30,15 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => JSON.parse(readFileSync(path.join(here, "fixtures", name), "utf8"));
 
+test("sanitized fixture manifest hashes match the bytes on disk", () => {
+  const manifest = fixture("fixture-manifest.json");
+  assert.equal(manifest.manifest_version, "1.0");
+  for (const entry of manifest.fixtures) {
+    const bytes = readFileSync(path.join(here, "fixtures", entry.path));
+    assert.equal(contentSha256(bytes), entry.sha256, entry.path);
+  }
+});
+
 test("clean batch is internally identity-verified and evidence eligible", () => {
   const payload = fixture("batch_identity_clean.json");
   const result = verifyBatch(payload);

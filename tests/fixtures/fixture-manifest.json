@@ -1,0 +1,32 @@
+{
+  "manifest_version": "1.0",
+  "redaction": "sanitized fixtures only; no credentials, cookies, user paths, or raw page bodies",
+  "fixtures": [
+    {
+      "path": "batch_identity_clean.json",
+      "sha256": "00b2c609ccca0992c3f45907af02ebc72ff01cb89743125826f37dfff77854f4",
+      "source_evidence_id": "R-003/mtkva7ib_835b.json",
+      "expected_identity_mismatch_count": 0
+    },
+    {
+      "path": "batch_identity_mismatch.json",
+      "sha256": "280b758fad7fc9e816b8bfc900c949ee50fc3a7bfe59f1cc5cb00dd4720c91dd",
+      "source_evidence_id": "R-003/mtkval1r_3ef2.json",
+      "expected_identity_mismatch_count": 4
+    },
+    {
+      "path": "github_api_escaped_json.json",
+      "sha256": "17c6326c09e3425cbd26ebd223148c5ae1f643060e2d97db9faa878aa56730d3",
+      "source_evidence_id": "sanitized_transport_fixture",
+      "expected_content_kind": "api_transport_invalid",
+      "expected_reason_class": "junk_escape"
+    },
+    {
+      "path": "github_api_wrapper_prefixed.json",
+      "sha256": "4b2d2b47b7bbf9f9ec5800a752458c0ad7edc962bc450e4be438e4738090afd3",
+      "source_evidence_id": "sanitized_transport_fixture",
+      "expected_content_kind": "api_transport_invalid",
+      "expected_reason_class": "wrapper_prefix"
+    }
+  ]
+}
