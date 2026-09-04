@@ -635,8 +635,9 @@ export function validateClaimRecord(value) {
       if (!Object.prototype.hasOwnProperty.call(value, field)) errors.push(issue(ERROR_CODES.RECORD_REQUIRED_FIELD, field, `${field} is required`));
     }
     if (!Array.isArray(value.evidence_ids) || !Array.isArray(value.source_ids) || !Array.isArray(value.counter_evidence_ids) || !Array.isArray(value.limitations)) errors.push(issue(ERROR_CODES.RECORD_INVALID_TYPE, "evidence_ids", "claim evidence/source arrays are required"));
-    enumError(errors, ERROR_CODES.RECORD_UNKNOWN_ENUM, "claim_type", value.claim_type, ["fact", "recommendation", "comparison", "limitation", "method", "unknown"]);
+    enumError(errors, ERROR_CODES.RECORD_UNKNOWN_ENUM, "claim_type", value.claim_type, ["fact", "evidence_backed_inference", "recommendation", "comparison", "limitation", "method", "unknown"]);
     enumError(errors, ERROR_CODES.RECORD_UNKNOWN_ENUM, "confidence", value.confidence, ["low", "medium", "high", "unknown"]);
+    enumError(errors, ERROR_CODES.RECORD_UNKNOWN_ENUM, "support_status", value.support_status, ["proposed", "supported", "corroborated", "disputed", "retracted"]);
     if (value.claim_type === "fact" && (typeof value.fact_subtype !== "string" || !value.fact_subtype.trim())) errors.push(issue(ERROR_CODES.RECORD_REQUIRED_FIELD, "fact_subtype", "fact claims require fact_subtype"));
     if (value.claim_type === "recommendation" && value.status === "reviewed" && (!Array.isArray(value.evidence_ids) || value.evidence_ids.length === 0)) errors.push(issue(ERROR_CODES.RECORD_REQUIRED_FIELD, "evidence_ids", "reviewed recommendations require evidence"));
   }
@@ -672,7 +673,21 @@ export function validateAuthorityRegistry(value) {
 }
 
 const EVENT_REQUIRED_FIELDS = [
-  "event_id", "run_id", "contract_hash", "scope_key", "sub_q", "round", "query", "requested_tool", "actual_tool", "status", "evidence_capability", "captured_at",
+  "event_id", "run_id", "contract_hash", "scope_key", "sub_q", "round",
+  "query", "requested_hint", "requested_tool", "actual_tool", "fallback_chain",
+  "status", "degraded", "degrade_reason", "failure_class", "evidence_capability",
+  "requested_url", "returned_url", "final_url", "identity_status", "content_type",
+  "content_sha256", "result_count", "raw_path", "cache_key", "cache_hit", "cache_stale",
+  "retrieval_status", "trace_coverage", "source_id", "canonical_source_id",
+  "parent_event_id", "discovery_evidence_id", "authority_registry_id", "platform",
+  "account_or_author", "published_at", "sample_window", "sample_basis", "selection_bias",
+  "final_url_status", "independence_group", "evidence_ids", "provider_usage",
+  "provider_cost", "usage_status", "elapsed_ms", "captured_at",
+];
+const EVENT_NON_NULL_FIELDS = [
+  "event_id", "run_id", "contract_hash", "scope_key", "sub_q", "round", "query",
+  "requested_tool", "actual_tool", "status", "evidence_capability", "identity_status",
+  "final_url_status", "usage_status", "captured_at",
 ];
 const EVIDENCE_CAPABILITIES = ["none", "discovery_only", "official_discovery_only", "page_body", "preview_extracted", "social_lead_only", "evidence_grade"];
 const FINAL_URL_STATUSES = ["clean", "unsafe_scheme", "credential_present", "loopback", "private", "malformed"];
@@ -681,7 +696,10 @@ export function validateEventRecord(value) {
   const errors = [];
   if (!isPlainObject(value)) return result([issue(ERROR_CODES.RECORD_INVALID_TYPE, "$", "event must be an object")]);
   for (const field of EVENT_REQUIRED_FIELDS) {
-    if (!Object.prototype.hasOwnProperty.call(value, field) || value[field] === undefined || value[field] === null || (typeof value[field] === "string" && value[field].trim() === "")) errors.push(issue(ERROR_CODES.EVENT_REQUIRED_FIELD, field, `${field} is required`));
+    if (!Object.prototype.hasOwnProperty.call(value, field) || value[field] === undefined) errors.push(issue(ERROR_CODES.EVENT_REQUIRED_FIELD, field, `${field} is required`));
+  }
+  for (const field of EVENT_NON_NULL_FIELDS) {
+    if (value[field] === null || (typeof value[field] === "string" && value[field].trim() === "")) errors.push(issue(ERROR_CODES.EVENT_REQUIRED_FIELD, field, `${field} is required`));
   }
   if (value.round !== undefined && (!Number.isInteger(value.round) || value.round < 0)) errors.push(issue(ERROR_CODES.EVENT_REQUIRED_FIELD, "round", "round must be a non-negative integer"));
   if (value.contract_hash !== undefined && (typeof value.contract_hash !== "string" || !HASH_RE.test(value.contract_hash))) errors.push(issue(ERROR_CODES.EVENT_CONTRACT_HASH_INVALID, "contract_hash", "contract_hash must be a SHA-256 hex digest"));
