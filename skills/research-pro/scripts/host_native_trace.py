@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -26,13 +27,38 @@ from typing import Any
 try:
     from hermes_tools import web_extract, web_search  # type: ignore[import-not-found]
 except ModuleNotFoundError as exc:  # pragma: no cover - runtime guard
-    raise RuntimeError(
-        "host_native_trace.py must run inside execute_code, where hermes_tools is available"
-    ) from exc
+    web_extract = None
+    web_search = None
+    _HERMES_TOOLS_IMPORT_ERROR = exc
+else:
+    _HERMES_TOOLS_IMPORT_ERROR = None
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 TRACE_JS = SCRIPT_DIR / "trace.mjs"
+TRACE_TIMEOUT_SECONDS = 30
+
+
+def _redact_secrets(value: Any) -> str:
+    text = str(value)
+    text = re.sub(
+        r"((?:^|[\s?&])(?:authorization|auth|password|secret|credential|api[_-]?key|access[_-]?token|refresh[_-]?token|token|sig|signature|session|private[_-]?key)=)[^&#\s]+",
+        r"\1[REDACTED]",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"Bearer\s+[A-Za-z0-9._\-]+", "Bearer [REDACTED]", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?:sk|tvly|xai)-[A-Za-z0-9._-]{8,}", "[REDACTED]", text, flags=re.IGNORECASE)
+    return text
+
+
+def _require_hermes_tools() -> tuple[Any, Any]:
+    if web_search is None or web_extract is None:
+        raise RuntimeError(
+            "host_native_trace.py search/extract must run inside execute_code, "
+            "where hermes_tools is available"
+        ) from _HERMES_TOOLS_IMPORT_ERROR
+    return web_search, web_extract
 
 
 def _home() -> Path:
@@ -144,7 +170,18 @@ def _record(
             json.dump(payload, handle, ensure_ascii=False)
             tmp_name = handle.name
         cmd[cmd.index("PLACEHOLDER")] = tmp_name
-        completed = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        try:
+            completed = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=TRACE_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "error": "trace_record_timeout", "timeout_seconds": TRACE_TIMEOUT_SECONDS}
+        except OSError as exc:
+            return {"ok": False, "error": "trace_record_unavailable", "detail": str(exc)[:500]}
         if completed.returncode != 0:
             return {
                 "ok": False,
@@ -154,7 +191,7 @@ def _record(
         try:
             return json.loads(completed.stdout)
         except json.JSONDecodeError:
-            return {"ok": True, "trace_stdout": completed.stdout[-500:]}
+            return {"ok": False, "error": "trace_record_invalid_response"}
     finally:
         if tmp_name:
             try:
@@ -188,7 +225,8 @@ def main() -> int:
     if args.command == "search":
         query = args.query
         try:
-            native = web_search(query, limit=args.limit)
+            search_tool, _ = _require_hermes_tools()
+            native = search_tool(query, limit=args.limit)
             payload = _normalized_payload(native, query=query, tool="web_search")
             trace = _record(
                 payload,
@@ -199,9 +237,12 @@ def main() -> int:
                 sub_q=args.sub_q,
                 round_number=args.round_number,
             )
+            if not isinstance(trace, dict) or trace.get("ok") is not True:
+                print(
+                    json.dumps({"success": False, "error": "trace_record_failed", "trace": trace}, ensure_ascii=False)
+                )
+                return 2
             print(json.dumps(native, ensure_ascii=False))
-            if not trace.get("ok", True):
-                print(json.dumps({"trace_warning": trace}, ensure_ascii=False), file=sys.stderr)
             return 0
         except Exception as exc:  # record failures without fabricating search results
             payload = {
@@ -211,7 +252,7 @@ def main() -> int:
                 "results": [],
                 "error": str(exc),
             }
-            _record(
+            trace = _record(
                 payload,
                 query=query,
                 hint=args.hint,
@@ -220,13 +261,14 @@ def main() -> int:
                 sub_q=args.sub_q,
                 round_number=args.round_number,
             )
-            print(json.dumps({"success": False, "error": str(exc)}, ensure_ascii=False))
+            print(json.dumps({"success": False, "error": _redact_secrets(exc), "trace": trace}, ensure_ascii=False))
             return 1
 
     urls = args.urls
     query = ", ".join(urls)
     try:
-        native = web_extract(urls, char_limit=args.char_limit)
+        _, extract_tool = _require_hermes_tools()
+        native = extract_tool(urls, char_limit=args.char_limit)
         payload = _normalized_payload(native, query=query, tool="web_extract")
         trace = _record(
             payload,
@@ -237,9 +279,12 @@ def main() -> int:
             sub_q=args.sub_q,
             round_number=args.round_number,
         )
+        if not isinstance(trace, dict) or trace.get("ok") is not True:
+            print(
+                json.dumps({"success": False, "error": "trace_record_failed", "trace": trace}, ensure_ascii=False)
+            )
+            return 2
         print(json.dumps(native, ensure_ascii=False))
-        if not trace.get("ok", True):
-            print(json.dumps({"trace_warning": trace}, ensure_ascii=False), file=sys.stderr)
         return 0
     except Exception as exc:
         payload = {
@@ -249,7 +294,7 @@ def main() -> int:
             "results": [],
             "error": str(exc),
         }
-        _record(
+        trace = _record(
             payload,
             query=query,
             hint=args.hint,
@@ -258,7 +303,7 @@ def main() -> int:
             sub_q=args.sub_q,
             round_number=args.round_number,
         )
-        print(json.dumps({"success": False, "error": str(exc)}, ensure_ascii=False))
+        print(json.dumps({"success": False, "error": _redact_secrets(exc), "trace": trace}, ensure_ascii=False))
         return 1
 
 

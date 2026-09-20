@@ -61,13 +61,15 @@ function printSetupCard() {
 ### 最快修复（通用）
 \`\`\`bash
 mkdir -p "${home}" && chmod 700 "${home}"
-cp "${baseDir}/env.example" "${home}/.env"
+if [ ! -e "${home}/.env" ]; then
+  cp "${baseDir}/env.example" "${home}/.env"
+fi
 # 编辑 ${home}/.env ，填入任意一个:
 #   TAVILY_API_KEY=
 #   XAI_API_KEY=
 #   OPENROUTER_API_KEY=
 chmod 600 "${home}/.env"
-node "${baseDir}/scripts/doctor.mjs --require-ready"
+node "${baseDir}/scripts/doctor.mjs" --require-ready
 \`\`\`
 
 或:

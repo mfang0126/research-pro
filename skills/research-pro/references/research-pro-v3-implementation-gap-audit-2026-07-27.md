@@ -1,3 +1,7 @@
+# ARCHIVAL NOTE
+
+This dated audit describes an earlier baseline and its observed gaps. It is not active guidance for candidate `3.19.1-mf`; use [operations.md](operations.md) and the active entrypoint for current instructions.
+
 # Research Pro v3 实现差距审计
 
 > 日期：2026-07-27  

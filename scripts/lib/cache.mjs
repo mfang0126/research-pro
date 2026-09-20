@@ -10,8 +10,12 @@ const TRACKING_PARAMS = new Set([
   "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
   "gclid", "fbclid", "mc_cid", "mc_eid",
 ]);
-const SENSITIVE_KEY = /(?:authorization|cookie|password|passwd|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|login|session|credential|private[_-]?key|raw_headers?)/i;
-const SECRET_VALUE = /(?:Bearer\s+|api[_-]?key\s*[:=]\s*|secret\s*[:=]\s*|password\s*[:=]\s*)[^\s,;]+|(?:sk|tvly|xai)-[A-Za-z0-9._-]{8,}/gi;
+const SENSITIVE_KEY = /(?:^|_)(?:authorization|cookie(?:s)?|set_cookie(?:s)?|password|passwd|secret(?:s)?|client_secret(?:s)?|credential(?:s)?|api_key(?:s)?|apikey(?:s)?|x_api_key(?:s)?|api_token(?:s)?|access_token(?:s)?|refresh_token(?:s)?|bearer_token(?:s)?|token(?:s)?|sig(?:nature)?|login|session(?:_?ids?)?|private_key(?:s)?|raw_headers?)(?:_|$)/i;
+const SENSITIVE_AUTH_KEY = /(?:^|_)auth(?:_|$)/i;
+const SENSITIVE_COMPACT_STEM = /authorization|authentication|cookie|password|passwd|secret|credential|apikey|accesstoken|refreshtoken|authtoken|bearertoken|privatekey|session|rawheader/i;
+const USAGE_METRIC_KEY = /^(?:token_count|prompt_tokens|completion_tokens|total_tokens|input_tokens|output_tokens|cached_tokens|reasoning_tokens|cache_read_tokens|cache_write_tokens|tokens_used|token_usage|input_token_count|output_token_count|cached_token_count|reasoning_token_count|cache_read_token_count|cache_write_token_count|prompt_token_count|completion_token_count|total_token_count|audio_tokens|image_tokens|video_tokens|accepted_prediction_tokens|rejected_prediction_tokens|cache_creation_input_tokens|cache_read_input_tokens)$/i;
+const USAGE_CONTAINER_KEY = /^(?:usage|provider_usage|usage_details|prompt_tokens_details|completion_tokens_details|input_tokens_details|output_tokens_details|cache_creation_details|cache_read_details|cache_write_details)$/i;
+const SECRET_VALUE = /(?:Bearer\s+|api[_-]?key\s*[:=]\s*|(?:set[-_]?cookie|cookie|secret|password|client[-_]?secret)\s*[:=]\s*)[^\s,;]+|(?:sk|tvly|xai)-[A-Za-z0-9._-]{8,}/gi;
 
 export function researchProHome() {
   return process.env.RESEARCH_PRO_HOME || path.join(os.homedir(), ".config", "research-pro");
@@ -29,14 +33,28 @@ function normalizeQuery(value) {
   return normalizeText(value);
 }
 
+function resolveHints(options = {}, data = {}) {
+  const explicit = Array.isArray(options.hints) ? options.hints : [];
+  if (explicit.length) return explicit;
+  const payloadHints = Array.isArray(data.hints) ? data.hints : [];
+  if (payloadHints.length) return payloadHints;
+  const fallback = options.hint || options.requested_hint || data.hint || data.requested_hint || "";
+  return fallback ? [fallback] : [];
+}
+
 export function canonicalUrl(value) {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
   try {
     const url = new URL(raw);
+    url.username = "";
+    url.password = "";
     url.hash = "";
     for (const key of [...url.searchParams.keys()]) {
-      if (TRACKING_PARAMS.has(key.toLowerCase())) url.searchParams.delete(key);
+      const normalizedKey = key.toLowerCase();
+      if (TRACKING_PARAMS.has(normalizedKey) || isSensitiveKey(key)) {
+        url.searchParams.delete(key);
+      }
     }
     url.protocol = url.protocol.toLowerCase();
     url.hostname = url.hostname.toLowerCase();
@@ -45,7 +63,7 @@ export function canonicalUrl(value) {
     }
     return url.toString();
   } catch {
-    return raw.split("#", 1)[0];
+    return redactString(raw.split("#", 1)[0]);
   }
 }
 
@@ -100,16 +118,69 @@ export function cacheKey({
 }
 
 function redactString(value) {
-  return typeof value === "string" ? value.replace(SECRET_VALUE, "[REDACTED]") : value;
+  return typeof value === "string"
+    ? value
+      .replace(/([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^/\s?#]*@/g, "$1")
+      .replace(/((?:^|[\s?&])(?:authorization|auth|cookie|set[-_]?cookie|password|secret|credential|client[-_]?secret|x[-_]?api[-_]?key|apikey|api[_-]?key|access[_-]?token|refresh[_-]?token|token|sig|signature|session|private[_-]?key)=)[^&#\s]+/gi, "$1[REDACTED]")
+      .replace(SECRET_VALUE, "[REDACTED]")
+    : value;
+}
+
+function safeField(value, max = 2000) {
+  return redactString(String(value ?? "")).slice(0, max);
+}
+
+function isSensitiveKey(key) {
+  const normalized = String(key).replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2").replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/-/g, "_").toLowerCase();
+  if (USAGE_METRIC_KEY.test(normalized) || USAGE_CONTAINER_KEY.test(normalized)) return false;
+  return SENSITIVE_KEY.test(normalized)
+    || SENSITIVE_AUTH_KEY.test(normalized)
+    || SENSITIVE_COMPACT_STEM.test(normalized.replace(/_/g, ""));
+}
+
+const CACHE_TRANSIENT_KEYS = new Set(["raw", "raw_text", "headers", "request", "response_headers"]);
+const CACHE_ENTRY_ARRAY_KEYS = new Set(["results", "merged_results", "records", "merged_records"]);
+
+function stripCacheTransientFields(value) {
+  if (Array.isArray(value)) return value.map(stripCacheTransientFields);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [key, child] of Object.entries(value)) {
+      if (CACHE_TRANSIENT_KEYS.has(key.toLowerCase())) continue;
+      out[key] = stripCacheTransientFields(child);
+    }
+    return out;
+  }
+  return value;
+}
+
+function sanitizeCacheRecord(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const out = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (isSensitiveKey(key)) continue;
+    let cleaned;
+    if (key === "payload") {
+      cleaned = sanitize(child);
+    } else if (CACHE_ENTRY_ARRAY_KEYS.has(key) && Array.isArray(child)) {
+      cleaned = child.slice(0, 20).map((item) => sanitize(item)).filter((item) => item !== null);
+    } else if (key === "batches") {
+      cleaned = sanitize(child);
+    } else {
+      cleaned = sanitize(child, key);
+    }
+    if (cleaned !== null) out[key] = cleaned;
+  }
+  return stripCacheTransientFields(out);
 }
 
 function sanitize(value, key = "", depth = 0) {
-  if (depth > 8 || SENSITIVE_KEY.test(key)) return null;
+  if (depth > 8 || isSensitiveKey(key)) return null;
   if (Array.isArray(value)) return value.slice(0, 20).map((item) => sanitize(item, key, depth + 1)).filter((item) => item !== null);
   if (value && typeof value === "object") {
     const out = {};
     for (const [childKey, childValue] of Object.entries(value)) {
-      if (SENSITIVE_KEY.test(childKey)) continue;
+      if (isSensitiveKey(childKey)) continue;
       const cleaned = sanitize(childValue, childKey, depth + 1);
       if (cleaned !== null) out[childKey] = cleaned;
     }
@@ -120,6 +191,7 @@ function sanitize(value, key = "", depth = 0) {
     const lower = key.toLowerCase();
     if (["content", "body", "markdown", "text"].includes(lower)) max = 12000;
     if (["snippet", "description", "excerpt"].includes(lower)) max = 1200;
+    if (["url", "link", "href"].includes(lower)) return canonicalUrl(value).slice(0, max);
     return redactString(value).slice(0, max);
   }
   return value;
@@ -144,7 +216,7 @@ function extractResults(payload) {
     const dedupeKey = url || fingerprint;
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
-    const cleaned = sanitize(value) || {};
+    const cleaned = stripCacheTransientFields(sanitize(value) || {});
     if (url) cleaned.url = url;
     cleaned.fingerprint = fingerprint;
     out.push(cleaned);
@@ -153,22 +225,65 @@ function extractResults(payload) {
   return out;
 }
 
+function extractRecords(payload) {
+  if (!payload || typeof payload !== "object") return [];
+  const values = [];
+  for (const key of ["records", "merged_records"]) {
+    if (Array.isArray(payload[key])) values.push(...payload[key]);
+  }
+  if (Array.isArray(payload.batches)) {
+    for (const batch of payload.batches) {
+      if (Array.isArray(batch?.records)) values.push(...batch.records);
+    }
+  }
+  const out = [];
+  const seen = new Set();
+  for (const value of values) {
+    if (!value || typeof value !== "object") continue;
+    const cleaned = stripCacheTransientFields(sanitize(value));
+    if (!cleaned || typeof cleaned !== "object" || Array.isArray(cleaned)) continue;
+    const fingerprint = stableStringify(cleaned);
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    out.push(cleaned);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+function evidenceCount(results, records) {
+  const seen = new Set();
+  let count = 0;
+  for (const value of [...results, ...records]) {
+    if (!value || typeof value !== "object") continue;
+    const key = canonicalUrl(value.url || value.link || value.href) || value.id || stableStringify(value);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    count += 1;
+  }
+  return count;
+}
+
 function payloadForCache(payload) {
-  const cleaned = sanitize(payload || {}) || {};
-  for (const key of ["raw", "raw_text", "headers", "request", "response_headers"]) delete cleaned[key];
+  const cleaned = stripCacheTransientFields(sanitize(payload || {}) || {});
   const results = extractResults(payload || {});
   if (results.length) {
     cleaned.results = results;
     if (Object.prototype.hasOwnProperty.call(cleaned, "merged_results")) cleaned.merged_results = results;
   }
+  const records = extractRecords(payload || {});
+  if (records.length) {
+    cleaned.records = records;
+    if (Object.prototype.hasOwnProperty.call(cleaned, "merged_records")) cleaned.merged_records = records;
+  }
   return cleaned;
 }
 
-function statusFor(payload, explicit, degraded, error, results) {
+function statusFor(payload, explicit, degraded, error, results, records = []) {
   if (["ok", "zero", "degraded", "error"].includes(explicit)) return explicit;
   if (error || payload?.error) return "error";
   if (degraded || payload?.degraded) return "degraded";
-  return results.length || payload?.content || payload?.body_read || payload?.records ? "ok" : "zero";
+  return results.length || records.length || payload?.content || payload?.body_read ? "ok" : "zero";
 }
 
 function nowIso() {
@@ -177,21 +292,28 @@ function nowIso() {
 
 export function makeCacheRecord(payload = {}, options = {}) {
   const data = payload || {};
-  const hints = options.hints?.length ? options.hints : (Array.isArray(data.hints) ? data.hints : []);
+  const hints = resolveHints(options, data);
   const hint = options.hint || data.hint || data.requested_hint || hints[0] || "";
   const query = options.query || data.query || data.input || "";
   const intention = options.intention || data.intention || hint;
-  const freshnessClass = inferFreshness(hint, intention, options.freshness || "");
+  const freshnessClass = inferFreshness(hints.join(" "), intention, options.freshness || "");
   const recordKind = normalizeText(options.record_kind || data.record_kind || (hint === "scrape" ? "extract" : "search")) || "search";
   const requestedTool = options.requested_tool || data.requested_tool || "";
   const actualTool = options.actual_tool || data.tool || "";
   const degraded = options.degraded == null ? Boolean(data.degraded) : Boolean(options.degraded);
   const error = options.error || data.error || null;
   const results = extractResults(data);
-  const status = statusFor(data, options.status, degraded, error, results);
-  const resultCount = results.length || (data.content || data.body_read || data.records ? 1 : 0);
+  const records = extractRecords(data);
+  const status = statusFor(data, options.status, degraded, error, results, records);
+  const resultCount = evidenceCount(results, records) || (data.content || data.body_read ? 1 : 0);
+  const safeQuery = safeField(query);
+  const safeIntention = safeField(intention);
+  const safeHint = safeField(hint);
+  const safeHints = [...new Set(hints.filter(Boolean).map((value) => safeField(value)))].sort();
+  const safeRequestedTool = safeField(requestedTool);
+  const safeActualTool = safeField(actualTool);
   const keyOptions = {
-    query, hints, scope_key: options.scope_key || "", contract_hash: options.contract_hash || "", intention,
+    query: safeQuery, hints: safeHints, scope_key: safeField(options.scope_key), contract_hash: safeField(options.contract_hash), intention: safeIntention,
     locale: options.locale || "", region: options.region || "", jurisdiction: options.jurisdiction || "",
     domain: options.domain || "", source_type: options.source_type || "", record_kind: recordKind,
     limit: options.limit || 8, as_of: options.as_of || "", freshness_class: freshnessClass, requested_tool: requestedTool,
@@ -201,20 +323,20 @@ export function makeCacheRecord(payload = {}, options = {}) {
     key_version: CACHE_KEY_VERSION,
     record_kind: recordKind,
     cache_key: cacheKey(keyOptions),
-    scope_key: String(options.scope_key || ""),
-    contract_hash: String(options.contract_hash || ""),
-    intention: String(intention || ""),
-    hint: String(hint || ""),
-    hints: [...new Set(hints.filter(Boolean).map(String))].sort(),
-    query: String(query).slice(0, 2000),
-    normalized_query: normalizeQuery(query),
-    locale: String(options.locale || ""),
-    region: String(options.region || ""),
-    jurisdiction: String(options.jurisdiction || ""),
-    domain: String(options.domain || ""),
-    source_type: String(options.source_type || ""),
-    requested_tool: String(requestedTool || ""),
-    actual_tool: String(actualTool || ""),
+    scope_key: safeField(options.scope_key),
+    contract_hash: safeField(options.contract_hash),
+    intention: safeIntention,
+    hint: safeHint,
+    hints: safeHints,
+    query: safeQuery,
+    normalized_query: safeField(normalizeQuery(query)),
+    locale: safeField(options.locale),
+    region: safeField(options.region),
+    jurisdiction: safeField(options.jurisdiction),
+    domain: safeField(options.domain),
+    source_type: safeField(options.source_type),
+    requested_tool: safeRequestedTool,
+    actual_tool: safeActualTool,
     retrieved_at: options.retrieved_at || data.retrieved_at || data.fetched_at || nowIso(),
     as_of: String(options.as_of || ""),
     freshness_class: freshnessClass,
@@ -223,10 +345,11 @@ export function makeCacheRecord(payload = {}, options = {}) {
     degraded,
     result_count: resultCount,
     results,
+    records,
     payload: payloadForCache(data),
     error: error ? redactString(String(error)).slice(0, 500) : null,
-    run_id: String(options.run_id || ""),
-    source: String(options.source || "host-native"),
+    run_id: safeField(options.run_id),
+    source: safeField(options.source || "host-native"),
   };
 }
 
@@ -271,25 +394,35 @@ export function appendCacheRecord(record, { file = cachePath() } = {}) {
     });
     return result;
   } catch (error) {
-    return { ok: false, path: file, error: String(error?.message || error) };
+    return { ok: false, path: file, error: redactString(String(error?.message || error)).slice(0, 500) };
   }
 }
 
 function readRecords(file = cachePath()) {
-  if (!fs.existsSync(file)) return { records: [], invalid_lines: 0 };
   const records = [];
   let invalid_lines = 0;
+  let stat;
+  try {
+    stat = fs.statSync(file);
+  } catch (error) {
+    if (error?.code === "ENOENT") return { records: [], invalid_lines: 0, read_error: null };
+    return { records: [], invalid_lines, read_error: redactString(String(error?.message || error)).slice(0, 500) };
+  }
+  if (!stat.isFile()) return { records: [], invalid_lines, read_error: "cache_not_file" };
   try {
     for (const line of fs.readFileSync(file, "utf8").split("\n")) {
       if (!line.trim()) continue;
       try {
         const value = JSON.parse(line);
-        if (value && typeof value === "object") records.push(value);
+        const cleaned = sanitizeCacheRecord(value);
+        if (cleaned && typeof cleaned === "object" && !Array.isArray(cleaned)) records.push(cleaned);
         else invalid_lines += 1;
       } catch { invalid_lines += 1; }
     }
-  } catch { return { records: [], invalid_lines }; }
-  return { records, invalid_lines };
+  } catch (error) {
+    return { records: [], invalid_lines, read_error: redactString(String(error?.message || error)).slice(0, 500) };
+  }
+  return { records, invalid_lines, read_error: null };
 }
 
 function parseTime(value) {
@@ -309,7 +442,7 @@ function isStale(record) {
 }
 
 function project(record, stale) {
-  const projected = { ...(sanitize(record.payload) || {}) };
+  const projected = { ...stripCacheTransientFields(sanitize(record.payload) || {}) };
   return {
     ...projected,
     cached: true,
@@ -325,13 +458,21 @@ function project(record, stale) {
 }
 
 export function lookupCache(options = {}, { file = cachePath() } = {}) {
-  const hints = options.hints || [];
-  const freshnessClass = inferFreshness(hints[0] || "", options.intention || "", options.freshness || "");
+  const hints = resolveHints(options);
+  const freshnessClass = inferFreshness(hints.join(" "), options.intention || "", options.freshness || "");
   const key = cacheKey({ ...options, hints, intention: options.intention || hints[0] || "", freshness_class: freshnessClass });
-  const { records, invalid_lines } = readRecords(file);
+  const { records, invalid_lines, read_error } = readRecords(file);
   const matches = records.filter((record) => record.cache_key === key).sort((a, b) => (parseTime(b.retrieved_at) || 0) - (parseTime(a.retrieved_at) || 0));
   const latest = matches[0];
-  const result = { hit: false, cache_key: key, invalid_lines, stale: false };
+  const result = {
+    ok: !read_error,
+    hit: false,
+    cache_key: key,
+    invalid_lines,
+    stale: false,
+    read_error: read_error || null,
+  };
+  if (read_error) return result;
   if (!latest) return result;
   const stale = isStale(latest);
   Object.assign(result, { status: latest.status, stale, record: latest });

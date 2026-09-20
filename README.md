@@ -1,110 +1,137 @@
-# research-pro
+# Research Pro
 
-**Systematic research skill — spiral convergence model.** Break any question (vague or clear) into sub-questions, search iteratively, and converge until every sub-question has an answer.
+**让 AI 真正把问题研究明白，而不是只给你一堆链接。**
 
-系统化研究 skill — 螺旋收敛模型。把任何问题（模糊或清晰）分解成子问题，迭代搜索，越搜越清晰，直到每个子问题都有答案。
+Research Pro 是一个给 AI agent 使用的、以意图为中心的研究 skill。它会先理解你想做什么，再判断当前真正缺的是什么：是概念、规则、最新变化、真实使用经验、代码实现、来源之间的冲突，还是本地验证。
 
-Works with: **Hermes** · **Claude Code** · **OpenClaw** · **Codex** · **Kimi Code** · any agent that reads skills.
+它不会因为找到一个搜索结果就宣布“研究完成”，也不会为了凑固定轮数一直搜索。它会告诉你现在能确定什么、依据是什么、哪些地方仍然未知，以及下一步最有价值的验证是什么。
 
-兼容：**Hermes** · **Claude Code** · **OpenClaw** · **Codex** · **Kimi Code** · 任何能读取 skill 的 agent。
+## 什么时候用
 
----
+适合这些问题：
 
-## 🚀 Quick Start (2 minutes) · 快速开始（2 分钟）
+- “这个技术或产品适不适合我们？”
+- “几个方案有什么真实差异，应该怎么选？”
+- “这个概念、规则或官方说法到底是什么意思？”
+- “最近发生了什么，哪些变化已经可以确认？”
+- “官方文档这样说，真实使用有没有坑？”
+- “我已经搜到一些东西，但不知道哪些可信、还缺什么？”
 
-### 1. Set your API key (one line) · 配置 API key（一条命令）
+不需要 Research Pro 的情况：
 
-```bash
-mkdir -p ~/.config/research-pro && chmod 700 ~/.config/research-pro
-echo "TAVILY_API_KEY=tvly-YOUR_KEY_HERE" > ~/.config/research-pro/.env && chmod 600 ~/.config/research-pro/.env
+- 只想查一个简单、稳定的事实；
+- 只需要总结一个已经提供的链接或文件；
+- 任务本身是直接改代码，而不是先研究方案或证据。
+
+## 它是怎么工作的
+
+Research Pro 不把每个问题都套进同一条固定流程。它根据当前的理解缺口选择下一步，然后根据新证据重新判断。
+
+```mermaid
+flowchart TD
+    A[用户问题与目标] --> B[理解意图、约束和已知信息]
+    B --> C{当前最重要的缺口是什么?}
+
+    C -->|概念或定义| D[查定义、标准、权威解释]
+    C -->|规则或官方承诺| E[读官方文档、原始资料]
+    C -->|实现或真实经验| F[看代码、案例、社区、视频与字幕]
+    C -->|最新变化| G[查实时来源与版本信息]
+    C -->|本地是否适用| H[读本地项目、做验证或提出实验]
+    C -->|页面被挡或内容不完整| I[按失败类型恢复：镜像、抓取、字幕或替代来源]
+
+    D --> J[读取与主张直接相关的部分]
+    E --> J
+    F --> J
+    G --> J
+    H --> J
+    I --> J
+
+    J --> K[区分：来源原话、观察、推断、建议]
+    K --> L{证据足够支持当前决定?}
+    L -->|是| M[交付：结论、依据、限制]
+    L -->|否| N[更新理解缺口]
+    N --> O{仍在授权、预算和时间内?}
+    O -->|是| C
+    O -->|否| P[交付部分或条件性结论，并说明缺口]
 ```
 
-Get a free key: https://app.tavily.com (1000 calls/month, no credit card, email signup). Or use `XAI_API_KEY` / `OPENROUTER_API_KEY`.
+这张图的重点是中间的回路：搜到新信息后，可能需要回头重新定义问题，也可能发现已经足够回答，不再继续搜索。
 
-免费获取 key：https://app.tavily.com（每月 1000 次调用，无需信用卡，邮箱注册即可）。也可使用 `XAI_API_KEY` / `OPENROUTER_API_KEY`。
+## 不同资料各自解决什么问题
 
-### 2. Install + verify (one command) · 安装并验证（一条命令）
+| 资料或方式 | 适合回答 | 不能自动证明 |
+|---|---|---|
+| 本地文件、代码和历史记录 | 当前项目到底是什么状态，过去已经决定了什么 | 不能代表外部世界的最新情况 |
+| 官方文档、标准、发布者资料 | 定义、规则、支持范围和官方承诺 | 不能单独证明真实效果或适合你的场景 |
+| 学术论文和技术报告 | 机制、方法、实验结果和研究边界 | 不能自动证明本地环境一定复现 |
+| GitHub、案例和开发者社区 | 实际实现、边缘情况、维护和踩坑经验 | 不能把个别经验推广成普遍结论 |
+| Reddit 等社区讨论 | 用户遇到的问题、失败模式和替代方案 | 直接访问可能被 block，帖子观点也不是独立验证 |
+| YouTube 与字幕/转录 | 演示过程、讲解、访谈和使用上下文 | 只读字幕不等于看过完整画面，片段不代表整段视频 |
+| 实时来源 | 最近发布、变化和当前状态 | 需要检查日期、版本和来源稳定性 |
 
-```bash
-git clone https://github.com/mfang0126/research-pro.git /tmp/research-pro && \
-cd /tmp/research-pro && bash scripts/install.sh && \
-node scripts/doctor.mjs --require-ready
-```
+来源类型只是检索入口，不是证据等级。真正重要的是它是否直接回答当前主张、能否追溯到原文、条件是否匹配，以及是否有必要的独立挑战或本地验证。
 
-### 3. Use it · 使用
+如果页面被拒绝、只能拿到摘要、正文被截断，Research Pro 会先判断这个缺口是否会改变结论，再选择对应的恢复路径。恢复失败会成为结论的一部分，不会把一个链接或搜索摘要伪装成证据。
+
+## 什么才算“够好”
+
+一个强参考不是“官方”三个字，也不是“搜到了很多次”。它至少要满足：
+
+1. 直接对应当前要判断的主张；
+2. 能追溯到原文、代码、数据或明确的实验方法；
+3. 来源或方法在这个领域有相应可信度；
+4. 条件、版本、时间和你的场景相符；
+5. 对高风险决定，还要检查反面证据、独立经验或本地验证。
+
+因此最终回答可能是“可以”“有条件可以”“目前不能确认”，而不是强行给一个看起来确定的结论。
+
+## 你会得到什么
+
+通常会得到四部分：
+
+- 直接回答或当前最合理的决定；
+- 支撑它的来源和具体位置；
+- 争议、版本、访问范围和证据限制；
+- 仍然未知，以及最值得做的下一步验证。
+
+## 直接这样问
 
 ```text
-Research what's new in Next.js 15
-帮我研究 Next.js 15 有什么新功能
+帮我研究：这个工具适不适合我们团队？先理解我们的使用场景，再查官方能力、真实使用经验、维护风险和限制，最后给出有依据的建议。
 ```
 
-That's it. The skill auto-triggers on research keywords (e.g. "帮我研究", "调研", "research", "investigate").
-
-就这么简单。skill 会在检测到研究类关键词时自动触发（如"帮我研究""调研""research""investigate"）。
-
----
-
-## 🤖 Agent One-Shot Setup · Agent 一键配置
-
-Want your AI agent to install everything for you? See **[SETUP_PROMPT.md](SETUP_PROMPT.md)** — copy-paste one prompt and the agent does the rest.
-
-想让 AI agent 自动完成全部安装？参见 **[SETUP_PROMPT.md](SETUP_PROMPT.md)** — 复制粘贴一段提示词，agent 会完成其余所有工作。
-
----
-
-## What it does · 功能
-
-| Feature · 功能 | Description · 说明 |
-|---------|-------------|
-| 🔍 Multi-tool search · 多工具搜索 | Tavily, Grok (web + X/Twitter), Perplexity, Firecrawl, YouTube |
-| 🗺️ Research Map · 研究地图 | Track sub-questions, facts, clues, confidence · 追踪子问题、事实、线索与置信度 |
-| 🎯 Search Contract · 搜索契约 | Lock scope before searching, prevent topic drift · 搜索前锁定范围，防止主题漂移 |
-| 📊 Structured reports · 结构化报告 | YAML frontmatter, comparison matrices, source lists · YAML 元数据、对比矩阵、来源清单 |
-| 🔄 Spiral convergence · 螺旋收敛 | Iterative: search → update map → find gaps → repeat · 迭代：搜索 → 更新地图 → 找缺口 → 重复 |
-| 📝 Search trace · 搜索轨迹 | Every search logged for debugging and comparison · 每次搜索留痕，便于调试与对比 |
-| 🛡️ READY gate · READY 门禁 | Won't search without verified keys · 未验证 key 前不执行搜索 |
-
-### The 5 phases · 五个阶段
-
-| Phase · 阶段 | Purpose · 目标 |
-|---------|-------------|
-| 1. Understand the question · 理解问题 | Parse intent, verify preconditions, confirm the search target · 解析意图、验证前提、确认搜索目标 |
-| 2. Prepare the search · 搜索准备 | Build queries, route tools, lock the Search Contract · 构建 query、路由工具、锁定搜索契约 |
-| 3. Search + map update · 搜索与地图更新 | Core loop: gather evidence, update facts & confidence · 核心循环：收集证据，更新事实与置信度 |
-| 4. Convergence check · 收敛判断 | Decide: converge, fill gaps, or pivot direction · 判定：收敛、补缺口或转向 |
-| 5. Log + self-optimize · 日志与自我优化 | Persist trace, review frequency, tune the next run · 留痕复盘，优化下一轮 |
-
----
-
-## Structure · 项目结构
-
-```
-research-pro/
-├── SKILL.md              # Core methodology (900+ lines) · 核心方法论
-├── SETUP.md              # Full setup guide · 完整安装指南
-├── SETUP_PROMPT.md       # One-shot agent setup prompt · agent 一键安装提示词
-├── README.md             # You are here · 你正在看这里
-├── env.example           # Key template · key 模板
-├── evals/                # Test cases · 测试用例
-├── references/           # Tavily/XAI docs, security, quality checklist
-└── scripts/
-    ├── doctor.mjs        # Health check (run first!) · 健康检查（先运行！）
-    ├── install.sh        # Installer (symlinks into agents) · 安装器（软链到各 agent）
-    ├── trace.mjs         # Search trace CLI · 搜索轨迹 CLI
-    ├── grok_search.mjs   # Grok web/X search · Grok 网页/X 搜索
-    ├── host_native_trace.py  # Hermes bridge for web_search/web_extract · Hermes 桥接
-    ├── run-with-creds.mjs    # Credential shim for CLI tools · CLI 凭据外壳
-    ├── search_with_trace.sh  # Smart-search wrapper · 智能搜索封装
-    └── ...               # More utilities · 更多工具
+```text
+帮我研究：SQLite 外键声明是否默认生效？请给官方依据，并告诉我如何在实际连接上验证。
 ```
 
----
+问题还不完整也可以直接开始。Research Pro 会先补齐最影响判断的概念或事实；只有缺少的用户偏好会改变路线时，才会问你一个针对性问题。
 
-## Version · 版本
+## 安装与检查
 
-v3.17.1-mf — spiral convergence model with host-native trace bridge.
+```bash
+git clone https://github.com/mfang0126/research-pro.git
+cd research-pro
+bash scripts/install.sh
+```
 
-v3.17.1-mf — 螺旋收敛模型，含 host-native 搜索轨迹桥接。
+如果宿主已经提供可用的网页搜索，可能不需要配置脚本 API key。需要使用脚本搜索时，在私有配置文件中放入至少一个受支持的 provider key，然后运行：
 
-Changelog: see git log or `SKILL.md` frontmatter.
-更新日志：见 git log 或 `SKILL.md` frontmatter。
+```bash
+node scripts/doctor.mjs --require-ready --json
+```
+
+完整安装、凭据和宿主接入说明见 [SETUP.md](SETUP.md)。
+
+## 给维护者
+
+- [SKILL.md](SKILL.md)：主动研究指引和证据边界；
+- [references/operations.md](references/operations.md)：检索、访问恢复、预算、停止和运行记录；
+- `skills/research-pro/`：给其他宿主使用的镜像入口；
+- `.diagram/`：README 流程图的 Mermaid 源文件；
+- `node evals/validate_contract_gate.mjs --require-mirror`：检查公共封包和镜像一致性。
+
+验证通过表示封包和运行层符合当前约束，不代表所有网站、后端或未来模型回答都一定正确。Research Pro 会把这些访问限制和未知保留在最终答案里。
+
+## Version
+
+`3.19.1-mf` — intent-driven research with claim boundaries tied to inspected material, end-to-end delivery budgeting, and runtime redaction/mirror repairs.

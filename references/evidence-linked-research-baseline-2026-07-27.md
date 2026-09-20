@@ -1,3 +1,7 @@
+# ARCHIVAL NOTE
+
+This dated baseline records historical observations and proposals. It is not active guidance for candidate `3.19.1-mf`; its former Search Contract, READY, source-count, and migration language must not be loaded as current operating rules.
+
 # Evidence-Linked Research 基线记录
 
 ## 1. 文档目的、范围与验证边界

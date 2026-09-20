@@ -155,8 +155,10 @@ run-log:           $RESEARCH_PRO_HOME/run-log.jsonl
 
 ## How it works
 
-1. Classifies depth (Quick / Standard / Deep)
-2. Routes by **capability** (not a single vendor)
-3. Returns structured report with citations
+1. Identifies the user's intended decision and current knowledge gaps.
+2. Chooses search, reading, clarification or stopping from the current evidence, within a shared budget.
+3. Returns an answer suited to the task, with supporting sources, applicability limits and unresolved gaps.
+
+The doctor checks tool readiness; it does not assess evidence quality. Legacy depth labels are optional metadata, not mandatory search sequences or completion quotas.
 
 Full methodology: `SKILL.md`

@@ -41,15 +41,19 @@ if [ ! -x "$SMART_SEARCH" ] && [ ! -f "$SMART_SEARCH" ]; then
 fi
 
 TMP="$(mktemp -t research-pro-search.XXXXXX.json)"
-cleanup() { rm -f "$TMP"; }
+TMP_ERR="$(mktemp -t research-pro-search.XXXXXX.err)"
+cleanup() { rm -f "$TMP" "$TMP_ERR"; }
 trap cleanup EXIT
 
 # smart-search owns the common cache + trace boundary. The wrapper only
 # preserves stdout/exit semantics; it must not append a second event.
 set +e
-"$SMART_SEARCH" "${PASS_ARGS[@]}" >"$TMP" 2>/tmp/research-pro-search.err
+"$SMART_SEARCH" "${PASS_ARGS[@]}" >"$TMP" 2>"$TMP_ERR"
 EC=$?
 set -e
 
 cat "$TMP"
+if [ "$EC" -ne 0 ]; then
+  cat "$TMP_ERR" >&2
+fi
 exit "$EC"

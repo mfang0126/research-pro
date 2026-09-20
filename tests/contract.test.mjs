@@ -92,6 +92,11 @@ const SYNCED_REL_PATHS = [
   "scripts/lib/url_policy.mjs",
   "scripts/lib/output_guard.mjs",
   "scripts/lib/source_integrity.mjs",
+  "scripts/lib/cache.mjs",
+  "scripts/lib/trace.mjs",
+  "scripts/trace.mjs",
+  "scripts/host_native_trace.py",
+  "scripts/search_with_trace.sh",
 ];
 
 /** Minimal but complete contract based on plan §2.2. */

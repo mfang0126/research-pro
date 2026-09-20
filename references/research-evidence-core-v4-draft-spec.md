@@ -1,3 +1,7 @@
+# ARCHIVAL NOTE
+
+This dated v4 document is a draft design record, not an active schema, runtime contract, or migration requirement for candidate `3.19.1-mf`.
+
 # Research Evidence Core v4 草案规范
 
 > 状态：`DRAFT`  

@@ -9,7 +9,7 @@
  *   node scripts/trace.mjs prune --days 14
  *   node scripts/trace.mjs status
  *
- * Never prints secrets. Exit 0 even on soft failures (debug path).
+ * Never prints secrets. Trace/cache failures return non-zero and structured JSON.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -21,6 +21,7 @@ import {
   pruneRuns,
   researchProHome,
   runDir,
+  redactSecrets,
   traceMode,
 } from "./lib/trace.mjs";
 import {
@@ -151,6 +152,11 @@ try {
       depth: args.depth || "standard",
       tier: args.tier || null,
       sub_questions,
+      extra: {
+        parent_run_id: args["parent-run-id"] || process.env.RESEARCH_PRO_PARENT_RUN_ID || null,
+        provider: args.provider || process.env.RESEARCH_PRO_PROVIDER || null,
+        model: args.model || process.env.RESEARCH_PRO_MODEL || null,
+      },
     });
     // machine-friendly one line
     console.log(JSON.stringify(res));
@@ -189,6 +195,21 @@ try {
       elapsed_ms: args["elapsed-ms"] != null ? Number(args["elapsed-ms"]) : null,
       sub_q: args["sub-q"] || args.sub_q || null,
       round: args.round != null ? Number(args.round) : null,
+      iteration: args.iteration != null ? Number(args.iteration) : null,
+      scope_key: args["scope-key"] || args.scope_key || process.env.RESEARCH_PRO_SCOPE_KEY || null,
+      contract_hash: args["contract-hash"] || args.contract_hash || process.env.RESEARCH_PRO_CONTRACT_HASH || null,
+      provider: args.provider || process.env.RESEARCH_PRO_PROVIDER || null,
+      model: args.model || process.env.RESEARCH_PRO_MODEL || null,
+      request_id: args["request-id"] || null,
+      tool_call_id: args["tool-call-id"] || null,
+      attempt: args.attempt != null ? Number(args.attempt) : null,
+      error_type: args["error-type"] || null,
+      retry_count: args["retry-count"] != null ? Number(args["retry-count"]) : null,
+      fallback_chain: args["fallback-chain"] || null,
+      fallback_route: args["fallback-route"] || null,
+      cost_usd: args["cost-usd"] != null ? Number(args["cost-usd"]) : null,
+      start_time: args["start-time"] || null,
+      end_time: args["end-time"] || null,
       status: args.status || "ok",
       error: args.error || null,
       force_raw: Boolean(args["force-raw"] || args.full),
@@ -197,8 +218,9 @@ try {
     const options = cacheOptions(args, payload);
     const record = makeCacheRecord(payload || {}, options);
     const cache = appendCacheRecord(record, { file: cachePath() });
-    console.log(JSON.stringify({ ...res, cache }));
-    process.exit(res.ok ? 0 : 0); // soft
+    const ok = Boolean(res.ok && cache.ok);
+    console.log(JSON.stringify({ ...res, ok, debug: res, cache }));
+    process.exit(ok ? 0 : 1);
   }
 
   if (cmd === "record-search") {
@@ -230,6 +252,21 @@ try {
       elapsed_ms: args["elapsed-ms"] != null ? Number(args["elapsed-ms"]) : null,
       sub_q: args["sub-q"] || args.sub_q || null,
       round: args.round != null ? Number(args.round) : null,
+      iteration: args.iteration != null ? Number(args.iteration) : null,
+      scope_key: options.scope_key || null,
+      contract_hash: options.contract_hash || null,
+      provider: args.provider || process.env.RESEARCH_PRO_PROVIDER || null,
+      model: args.model || process.env.RESEARCH_PRO_MODEL || null,
+      request_id: args["request-id"] || null,
+      tool_call_id: args["tool-call-id"] || null,
+      attempt: args.attempt != null ? Number(args.attempt) : null,
+      error_type: args["error-type"] || null,
+      retry_count: args["retry-count"] != null ? Number(args["retry-count"]) : null,
+      fallback_chain: args["fallback-chain"] || null,
+      fallback_route: args["fallback-route"] || null,
+      cost_usd: args["cost-usd"] != null ? Number(args["cost-usd"]) : null,
+      start_time: args["start-time"] || null,
+      end_time: args["end-time"] || null,
       status: options.status || "ok",
       error: options.error,
       force_raw: Boolean(args["force-raw"] || args.full),
@@ -237,15 +274,16 @@ try {
     });
     const record = makeCacheRecord(payload || {}, options);
     const cache = appendCacheRecord(record, { file: cachePath() });
-    console.log(JSON.stringify({ ok: Boolean(cache.ok), debug, cache, cache_key: record.cache_key }));
-    process.exit(0);
+    const ok = Boolean(debug.ok && cache.ok);
+    console.log(JSON.stringify({ ok, debug, cache, cache_key: record.cache_key }));
+    process.exit(ok ? 0 : 1);
   }
 
   if (cmd === "lookup-search") {
     const options = cacheOptions(args, null);
     const result = lookupCache(options, { file: cachePath() });
     console.log(JSON.stringify(result));
-    process.exit(0);
+    process.exit(result.ok === false ? 1 : 0);
   }
   if (cmd === "finalize") {
     let report_text = null;
@@ -268,9 +306,18 @@ try {
         : null,
       report_path: args.report || null,
       report_text,
+      status: args.status || null,
+      termination_reason: args["termination-reason"] || null,
+      trace_coverage: args["trace-coverage"] || null,
+      artifact_paths: args["artifact-paths"] ? csv(args["artifact-paths"]) : [],
+      source_manifest_path: args["source-manifest"] || null,
+      trace_path: args["trace-path"] || null,
+      parent_run_id: args["parent-run-id"] || process.env.RESEARCH_PRO_PARENT_RUN_ID || null,
+      provider: args.provider || process.env.RESEARCH_PRO_PROVIDER || null,
+      model: args.model || process.env.RESEARCH_PRO_MODEL || null,
     });
     console.log(JSON.stringify(res));
-    process.exit(0);
+    process.exit(res.ok ? 0 : 1);
   }
 
   if (cmd === "prune") {
@@ -313,6 +360,6 @@ try {
 
   usage();
 } catch (e) {
-  console.log(JSON.stringify({ ok: false, error: String(e?.message || e) }));
-  process.exit(0);
+  console.log(JSON.stringify({ ok: false, error: redactSecrets(String(e?.message || e)) }));
+  process.exit(1);
 }
