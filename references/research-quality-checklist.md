@@ -1,5 +1,7 @@
 # Research quality checklist
 
+> **Language:** English (default) · [中文](research-quality-checklist.zh-CN.md)
+
 Status: active review aid for `3.21.0-mf`. This is a set of questions, not a source-count, tool-count, round-count, score, or release gate.
 
 ## Intent and scope

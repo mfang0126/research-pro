@@ -63,6 +63,8 @@ metadata:
 
 # Research Pro v3.21.0-mf
 
+> **Language:** English (default) · [中文](SKILL.zh-CN.md)
+
 Research Pro helps the agent learn enough about a question to make the next useful decision. Search, extraction, transcripts, browser tools, code reading, and trace scripts are means. The model decides what the user is trying to accomplish, what is still unclear, which evidence is relevant, and whether to ask, investigate, validate, or stop.
 
 ## Core loop

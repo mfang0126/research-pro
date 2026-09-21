@@ -1,5 +1,7 @@
 # Search orchestration
 
+> **Language:** English (default) · [中文](search-orchestration.zh-CN.md)
+
 Status: active reference for `3.21.0-mf`. Division of labor: [search-actions-and-access.md](search-actions-and-access.md) owns the intent→action guidance; this file owns the **capability catalog**, **provider chains**, **budgets**, and **convergence discipline**. Doctrine: semantic classification decides the route; deterministic rules (chains, dedupe, breaker, ledger) enforce it.
 
 Prices and availability below were verified on 2026-09-21 against provider pricing pages, account billing, and live probes. Re-verify after quota events or provider changes.

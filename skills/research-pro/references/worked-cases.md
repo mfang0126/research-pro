@@ -1,5 +1,7 @@
 # Worked patterns
 
+> **Language:** English (default) · [中文](worked-cases.zh-CN.md)
+
 Status: active reference for `3.21.0-mf`. These are small patterns for choosing the next action. They intentionally omit topic-specific answers and do not substitute for sealed evaluation cases.
 
 ## Authorized topic, unclear term

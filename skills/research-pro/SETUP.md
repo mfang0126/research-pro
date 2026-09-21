@@ -1,6 +1,8 @@
 # research-pro Setup Guide
 
-**Version:** 3.17.0-mf
+> **Language:** English (default) · [中文](SETUP.zh-CN.md)
+
+**Version:** 3.21.0-mf
 Runtime-agnostic research skill for Claude Code, Hermes, OpenClaw, Codex, Kimi Code, or plain shell.
 
 Anyone can install in **3 steps**: copy skill → put one API key → run doctor.

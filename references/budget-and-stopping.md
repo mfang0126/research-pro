@@ -1,5 +1,7 @@
 # Budget and stopping
 
+> **Language:** English (default) · [中文](budget-and-stopping.zh-CN.md)
+
 Status: active reference for `3.21.0-mf`. Use this when research can branch, retry, delegate, or consume more time than the final answer deserves.
 
 ## Set a shared boundary

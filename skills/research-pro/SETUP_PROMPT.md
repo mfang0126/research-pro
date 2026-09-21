@@ -1,5 +1,7 @@
 # One-Shot Agent Setup Prompt
 
+> **Language:** English (default) · [中文](SETUP_PROMPT.zh-CN.md)
+
 Copy the block below and paste it into your AI agent (Hermes, Claude Code, Codex, Kimi, etc.). The agent will install research-pro, configure your API key, and verify everything works.
 
 ---

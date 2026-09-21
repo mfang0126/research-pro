@@ -1,5 +1,7 @@
 # Search actions and access
 
+> **Language:** English (default) · [中文](search-actions-and-access.zh-CN.md)
+
 Status: active reference for `3.21.0-mf`. Choose an action from the current understanding gap. This is a routing aid, not a mandatory workflow or a backend ranking.
 
 ## Choose the next action

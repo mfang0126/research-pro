@@ -1,5 +1,7 @@
 # Jev pre-judgment layer (jev_plan / jev_rank)
 
+> **Language:** English (default) · [中文](jev-judge.zh-CN.md)
+
 Optional, fail-open layer that adds one fast TypeSafe **Jev** call before and
 after a search. Jev is a decisions model (typed `noul` / `choice` answers),
 not a text model: code proposes, Jev selects and scores.

@@ -1,112 +1,114 @@
 # Research Pro
 
-**让 AI 真正把问题研究明白，而不是只给你一堆链接。**
+> **Language:** English (default) · [中文](README.zh-CN.md)
 
-Research Pro 是一个给 AI agent 使用的、以意图为中心的研究 skill。它会先理解你想做什么，再判断当前真正缺的是什么：是概念、规则、最新变化、真实使用经验、代码实现、来源之间的冲突，还是本地验证。
+**Help AI actually research a question through to the end — not just hand you a pile of links.**
 
-它不会因为找到一个搜索结果就宣布“研究完成”，也不会为了凑固定轮数一直搜索。它会告诉你现在能确定什么、依据是什么、哪些地方仍然未知，以及下一步最有价值的验证是什么。
+Research Pro is an intent-centric research skill for AI agents. It first understands what you are trying to do, then determines what is actually missing: a concept, a rule, the latest changes, real-world experience, an implementation, conflicts between sources, or a local validation.
 
-## 什么时候用
+It will not declare "research complete" just because it found one search result, and it will not keep searching to satisfy a fixed number of rounds. It tells you what can be established now, on what basis, what remains unknown, and which validation is most valuable next.
 
-适合这些问题：
+## When to use it
 
-- “这个技术或产品适不适合我们？”
-- “几个方案有什么真实差异，应该怎么选？”
-- “这个概念、规则或官方说法到底是什么意思？”
-- “最近发生了什么，哪些变化已经可以确认？”
-- “官方文档这样说，真实使用有没有坑？”
-- “我已经搜到一些东西，但不知道哪些可信、还缺什么？”
+Good fits:
 
-不需要 Research Pro 的情况：
+- "Is this tool or product a good fit for us?"
+- "What are the real differences between these options, and how should we choose?"
+- "What does this concept, rule, or official statement actually mean?"
+- "What happened recently, and which changes can be confirmed?"
+- "The official docs say this — does real-world use have pitfalls?"
+- "I've found some material but don't know what is trustworthy or what is missing."
 
-- 只想查一个简单、稳定的事实；
-- 只需要总结一个已经提供的链接或文件；
-- 任务本身是直接改代码，而不是先研究方案或证据。
+Not needed:
 
-## 它是怎么工作的
+- A simple, stable fact lookup;
+- Summarising a link or file you already provided;
+- A task that is directly about changing code rather than researching options or evidence.
 
-Research Pro 不把每个问题都套进同一条固定流程。它根据当前的理解缺口选择下一步，然后根据新证据重新判断。
+## How it works
+
+Research Pro does not force every question through one fixed workflow. It picks the next step from the current understanding gap, then re-judges as new evidence arrives.
 
 ```mermaid
 flowchart TD
-    A[用户问题与目标] --> B[理解意图、约束和已知信息]
-    B --> C{当前最重要的缺口是什么?}
+    A[User question and goal] --> B[Understand intent, constraints, known information]
+    B --> C{What is the most important gap right now?}
 
-    C -->|概念或定义| D[查定义、标准、权威解释]
-    C -->|规则或官方承诺| E[读官方文档、原始资料]
-    C -->|实现或真实经验| F[看代码、案例、社区、视频与字幕]
-    C -->|最新变化| G[查实时来源与版本信息]
-    C -->|本地是否适用| H[读本地项目、做验证或提出实验]
-    C -->|页面被挡或内容不完整| I[按失败类型恢复：镜像、抓取、字幕或替代来源]
+    C -->|Concept or definition| D[Look up definitions, standards, authoritative explanations]
+    C -->|Rule or official promise| E[Read official docs and primary sources]
+    C -->|Implementation or real experience| F[Inspect code, cases, community, videos and transcripts]
+    C -->|Latest changes| G[Check realtime sources and version information]
+    C -->|Local applicability| H[Read local projects, validate, or propose an experiment]
+    C -->|Page blocked or incomplete| I[Recover by failure type: mirror, scrape, transcript, or alternative source]
 
-    D --> J[读取与主张直接相关的部分]
+    D --> J[Read only the part directly relevant to the claim]
     E --> J
     F --> J
     G --> J
     H --> J
     I --> J
 
-    J --> K[区分：来源原话、观察、推断、建议]
-    K --> L{证据足够支持当前决定?}
-    L -->|是| M[交付：结论、依据、限制]
-    L -->|否| N[更新理解缺口]
-    N --> O{仍在授权、预算和时间内?}
-    O -->|是| C
-    O -->|否| P[交付部分或条件性结论，并说明缺口]
+    J --> K[Separate: source statements, observations, inferences, recommendations]
+    K --> L{Is the evidence enough to support the current decision?}
+    L -->|Yes| M[Deliver: conclusion, basis, limits]
+    L -->|No| N[Update the understanding gap]
+    N --> O{Still within authorization, budget, and time?}
+    O -->|Yes| C
+    O -->|No| P[Deliver a partial or conditional conclusion, stating the gap]
 ```
 
-这张图的重点是中间的回路：搜到新信息后，可能需要回头重新定义问题，也可能发现已经足够回答，不再继续搜索。
+The point of this diagram is the loop in the middle: after new information arrives, you may need to go back and redefine the question — or you may find you already have enough and stop searching.
 
-## 不同资料各自解决什么问题
+## What each kind of material can and cannot answer
 
-| 资料或方式 | 适合回答 | 不能自动证明 |
+| Material or method | Good for answering | Does not by itself prove |
 |---|---|---|
-| 本地文件、代码和历史记录 | 当前项目到底是什么状态，过去已经决定了什么 | 不能代表外部世界的最新情况 |
-| 官方文档、标准、发布者资料 | 定义、规则、支持范围和官方承诺 | 不能单独证明真实效果或适合你的场景 |
-| 学术论文和技术报告 | 机制、方法、实验结果和研究边界 | 不能自动证明本地环境一定复现 |
-| GitHub、案例和开发者社区 | 实际实现、边缘情况、维护和踩坑经验 | 不能把个别经验推广成普遍结论 |
-| Reddit 等社区讨论 | 用户遇到的问题、失败模式和替代方案 | 直接访问可能被 block，帖子观点也不是独立验证 |
-| YouTube 与字幕/转录 | 演示过程、讲解、访谈和使用上下文 | 只读字幕不等于看过完整画面，片段不代表整段视频 |
-| 实时来源 | 最近发布、变化和当前状态 | 需要检查日期、版本和来源稳定性 |
+| Local files, code, history | The current state of the project; what was already decided | Anything about the outside world's latest state |
+| Official docs, standards, publisher material | Definitions, rules, support scope, official promises | Real-world performance, or fitness for your case |
+| Papers and technical reports | Mechanisms, methods, experimental results, research boundaries | That your local environment will reproduce them |
+| GitHub, cases, developer communities | Actual implementations, edge cases, maintenance, pitfalls | That one experience generalises into a general rule |
+| Community discussion (Reddit etc.) | Problems users hit, failure modes, alternatives | Direct access may be blocked; posts are not independent validation |
+| YouTube and transcripts | Demonstrations, explanations, interviews, usage context | Reading a transcript is not watching the whole video; a clip is not the whole talk |
+| Realtime sources | Recent releases, changes, current state | Check date, version, and source stability |
 
-来源类型只是检索入口，不是证据等级。真正重要的是它是否直接回答当前主张、能否追溯到原文、条件是否匹配，以及是否有必要的独立挑战或本地验证。
+Source type is an entry point, not an evidence grade. What matters is whether it directly answers the current claim, traces back to the original, matches the conditions, and whether independent challenge or local validation is needed.
 
-如果页面被拒绝、只能拿到摘要、正文被截断，Research Pro 会先判断这个缺口是否会改变结论，再选择对应的恢复路径。恢复失败会成为结论的一部分，不会把一个链接或搜索摘要伪装成证据。
+If a page is refused, only an abstract is available, or the body is truncated, Research Pro first decides whether the gap could change the conclusion, then picks the matching recovery path. A failed recovery becomes part of the conclusion — a link or a search snippet is never disguised as evidence.
 
-## 什么才算“够好”
+## What counts as "good enough"
 
-一个强参考不是“官方”三个字，也不是“搜到了很多次”。它至少要满足：
+A strong reference is neither the word "official" nor "found many times". It must at least:
 
-1. 直接对应当前要判断的主张；
-2. 能追溯到原文、代码、数据或明确的实验方法；
-3. 来源或方法在这个领域有相应可信度；
-4. 条件、版本、时间和你的场景相符；
-5. 对高风险决定，还要检查反面证据、独立经验或本地验证。
+1. directly address the claim being judged;
+2. trace to the original text, code, data, or a clear experimental method;
+3. have appropriate credibility for its field;
+4. match your conditions, version, timeline, and scenario;
+5. for high-stakes decisions, also check counterevidence, independent experience, or local validation.
 
-因此最终回答可能是“可以”“有条件可以”“目前不能确认”，而不是强行给一个看起来确定的结论。
+So the final answer may be "yes", "yes with conditions", or "cannot be confirmed yet" — rather than a forced conclusion that merely looks certain.
 
-## 你会得到什么
+## What you get
 
-通常会得到四部分：
+Usually four parts:
 
-- 直接回答或当前最合理的决定；
-- 支撑它的来源和具体位置；
-- 争议、版本、访问范围和证据限制；
-- 仍然未知，以及最值得做的下一步验证。
+- the direct answer or the most reasonable decision right now;
+- the sources and exact locations that support it;
+- disputes, version, access-scope, and evidence limits;
+- what is still unknown, and the most valuable next validation.
 
-## 直接这样问
+## Ask directly, like this
 
 ```text
-帮我研究：这个工具适不适合我们团队？先理解我们的使用场景，再查官方能力、真实使用经验、维护风险和限制，最后给出有依据的建议。
+Research this for me: is this tool a good fit for our team? Understand our use case first, then check official capabilities, real-world experience, maintenance risk, and limits, and give an evidence-based recommendation.
 ```
 
 ```text
-帮我研究：SQLite 外键声明是否默认生效？请给官方依据，并告诉我如何在实际连接上验证。
+Research this for me: are SQLite foreign key declarations enforced by default? Give the official basis and tell me how to verify it on an actual connection.
 ```
 
-问题还不完整也可以直接开始。Research Pro 会先补齐最影响判断的概念或事实；只有缺少的用户偏好会改变路线时，才会问你一个针对性问题。
+An incomplete question is fine. Research Pro fills in the concepts or facts that most affect the judgement first, and only asks a targeted question when a missing user preference would change the route.
 
-## 安装与检查
+## Install and check
 
 ```bash
 git clone https://github.com/mfang0126/research-pro.git
@@ -114,23 +116,23 @@ cd research-pro
 bash scripts/install.sh
 ```
 
-如果宿主已经提供可用的网页搜索，可能不需要配置脚本 API key。需要使用脚本搜索时，在私有配置文件中放入至少一个受支持的 provider key，然后运行：
+If your host already provides working web search, script API keys may not be needed. To use script-based search, put at least one supported provider key into the private config file, then run:
 
 ```bash
 node scripts/doctor.mjs --require-ready --json
 ```
 
-完整安装、凭据和宿主接入说明见 [SETUP.md](SETUP.md)。
+Full installation, credentials, and host integration: see [SETUP.md](SETUP.md).
 
-## 给维护者
+## For maintainers
 
-- [SKILL.md](SKILL.md)：主动研究指引和证据边界；
-- [references/operations.md](references/operations.md)：检索、访问恢复、预算、停止和运行记录；
-- `skills/research-pro/`：给其他宿主使用的镜像入口；
-- `.diagram/`：README 流程图的 Mermaid 源文件；
-- `node evals/validate_contract_gate.mjs --require-mirror`：检查公共封包和镜像一致性。
+- [SKILL.md](SKILL.md): proactive research guidance and evidence boundaries;
+- [references/operations.md](references/operations.md): retrieval, access recovery, budgets, stopping, and run records;
+- `skills/research-pro/`: mirror entry for other hosts;
+- `.diagram/`: Mermaid source for the README flowchart;
+- `node evals/validate_contract_gate.mjs --require-mirror`: checks the public packaging and mirror consistency.
 
-验证通过表示封包和运行层符合当前约束，不代表所有网站、后端或未来模型回答都一定正确。Research Pro 会把这些访问限制和未知保留在最终答案里。
+Passing the checks means the packaging and runtime layers meet the current constraints; it does not mean every website, backend, or future model answer is correct. Research Pro keeps those access limits and unknowns in the final answer.
 
 ## Version
 
