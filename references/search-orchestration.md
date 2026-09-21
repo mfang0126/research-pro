@@ -10,7 +10,7 @@ Every retrieval capability reachable from research-pro. "Family" = pipeline iden
 
 | # | Capability | Family | Mechanism | Returns | Unit cost | Latency | Evidence role | Status / limits |
 |---|---|---|---|---|---|---|---|---|
-| 1 | `quick` | TAVILY | Tavily basic search (`tvly` CLI) | Clean web results + snippets | $0.008/search | ~1 s | discovery | Quota shared with #2/#3/#4 | 
+| 1 | `quick` | TAVILY | Tavily basic search (`tvly` CLI) | Clean web results + snippets | $0.008/search | ~1 s | discovery | Quota shared with #2/#3/#4 |
 | 2 | `official` | TAVILY | Tavily with `{q} official documentation` bias | Web results biased to official docs | $0.008 | ~1 s | discovery (official) | Same pipeline as #1 — not independent |
 | 3 | `community` | TAVILY | Tavily with `{q} site:reddit.com` bias | Reddit-biased results | $0.008 | ~1 s | discovery (community) | Discovery only — reading needs #10/#9 |
 | 4 | `deep` | TAVILY | Tavily Research (mini/pro) | Synthesized multi-source report | $0.12–$2.00 | ~42 s | synthesis (secondary) | Cost cliff; ≤1/sub-question (Deep); never treated as raw evidence |

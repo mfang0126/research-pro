@@ -1,6 +1,6 @@
 # Worked patterns
 
-Status: active reference for candidate `3.19.1-mf`. These are small patterns for choosing the next action. They intentionally omit topic-specific answers and do not substitute for sealed evaluation cases.
+Status: active reference for `3.21.0-mf`. These are small patterns for choosing the next action. They intentionally omit topic-specific answers and do not substitute for sealed evaluation cases.
 
 ## Authorized topic, unclear term
 

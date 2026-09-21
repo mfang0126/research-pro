@@ -1,6 +1,6 @@
 # Research Pro operations reference
 
-Status: active for candidate `3.19.1-mf`. This file documents the existing scripts; it does not add a research state machine or change script behavior. Read it when a task needs external retrieval, credentials, trace, or output handling.
+Status: active for `3.21.0-mf`. This file documents the existing scripts; it does not add a research state machine or change script behavior. Read it when a task needs external retrieval, credentials, trace, or output handling.
 
 ## Locate the skill
 

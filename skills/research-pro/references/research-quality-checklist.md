@@ -1,6 +1,6 @@
 # Research quality checklist
 
-Status: active review aid for candidate `3.19.1-mf`. This is a set of questions, not a source-count, tool-count, round-count, score, or release gate.
+Status: active review aid for `3.21.0-mf`. This is a set of questions, not a source-count, tool-count, round-count, score, or release gate.
 
 ## Intent and scope
 

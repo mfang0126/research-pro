@@ -1,6 +1,6 @@
 # ARCHIVAL NOTE
 
-This dated baseline records historical observations and proposals. It is not active guidance for candidate `3.19.1-mf`; its former Search Contract, READY, source-count, and migration language must not be loaded as current operating rules.
+This dated baseline records historical observations and proposals. It is not active guidance for `3.21.0-mf`; its former Search Contract, READY, source-count, and migration language must not be loaded as current operating rules.
 
 # Evidence-Linked Research 基线记录
 

@@ -1,6 +1,6 @@
 # Evidence and claims
 
-Status: active reference for candidate `3.19.1-mf`. Use this when deciding whether a source supports a statement or whether a recommendation should remain conditional.
+Status: active reference for `3.21.0-mf`. Use this when deciding whether a source supports a statement or whether a recommendation should remain conditional.
 
 ## Keep the objects separate
 

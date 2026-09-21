@@ -1,6 +1,6 @@
 # Budget and stopping
 
-Status: active reference for candidate `3.19.1-mf`. Use this when research can branch, retry, delegate, or consume more time than the final answer deserves.
+Status: active reference for `3.21.0-mf`. Use this when research can branch, retry, delegate, or consume more time than the final answer deserves.
 
 ## Set a shared boundary
 
