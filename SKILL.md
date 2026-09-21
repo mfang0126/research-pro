@@ -16,7 +16,7 @@ description: |
   Output: an answer shaped for the user's decision, with supporting evidence,
   limits, disagreements, and unresolved gaps where they matter.
 user-invocable: true
-version: 3.19.1-mf
+version: 3.20.0-mf
 metadata:
   fork:
     origin: research-pro-v2
@@ -51,6 +51,7 @@ metadata:
       - "v3.18.1-mf: 修复 run_id 校验字符类转义错误 — 含 CJK 的问题文本 trace init 被 invalid_run_id 拒绝（`._-\u4e00` 中 `-` 需转义）"
       - "v3.19.0-mf: intent-driven core; progressive operational and evidence references; legacy contract retained only for compatibility"
       - "v3.19.1-mf: bound claims to inspected material; enforce end-to-end delivery budgeting; repair runtime redaction and mirror regression"
+      - "v3.20.0-mf: optional Jev pre-judgment layer (jev_plan/jev_rank) — auto-enabled when TYPESAFE_API_KEY/JEV_API_KEY is present, fail-open, kill switch RESEARCH_PRO_JEV=off; thresholds uncalibrated (triage only)"
   pattern: intent-driven-spiral-convergence
   requires:
     env: []
@@ -59,7 +60,7 @@ metadata:
     required_environment_variables: []
 ---
 
-# Research Pro v3.19.1-mf
+# Research Pro v3.20.0-mf
 
 Research Pro helps the agent learn enough about a question to make the next useful decision. Search, extraction, transcripts, browser tools, code reading, and trace scripts are means. The model decides what the user is trying to accomplish, what is still unclear, which evidence is relevant, and whether to ask, investigate, validate, or stop.
 
@@ -140,6 +141,15 @@ Choose a search hint or backend for the gap, not because a matrix requires it. `
 
 Distinguish an access refusal, rate limit, JavaScript-only page, truncated body, abstract-only result, topic mismatch, and genuinely insufficient evidence. A different access method is useful only when it addresses the observed failure. A source can remain a lead without becoming support for the conclusion. See [references/search-actions-and-access.md](references/search-actions-and-access.md).
 
+### Jev pre-judgment layer (optional; auto when configured)
+
+When `doctor` reports `jev_judge: available` and `RESEARCH_PRO_JEV` is not `off`, start a non-trivial script-backed search with one bounded planning call (~1s, batched, no retry), then use its result:
+
+- `node scripts/jev_plan.mjs '{"request":"<sub-question>"}'` → Jev picks the keyword query, the time window, and likely hints from rule-based candidates. Use `recommended.query` as the engine query and `recommended.hints` when invoking smart-search.
+- `node scripts/jev_rank.mjs '{"request":"...","results":[...]}'` → per-row relevance probabilities for ordering and triage. Scores are signal, not evidence; thresholds are local defaults pending calibration — never a hard gate.
+- Fail-open: missing key, `off`, HTTP or timeout error → continue with the normal flow unchanged; the attempt is recorded when a run is active (`tool: jev_plan|jev_rank`).
+- A failed or skipped layer must never block or delay a search beyond its bounded timeout.
+
 ## Delivery
 
 Shape the final response for the user's requested use. Usually include:
@@ -160,6 +170,7 @@ Load only the reference needed for the current action:
 | [operations.md](references/operations.md) | Running doctor, credentials, search wrappers, host-native bridge, trace, or output-safe finalization |
 | [evidence-and-claims.md](references/evidence-and-claims.md) | Assessing a claim, source, counterevidence, recommendation, or inference |
 | [search-actions-and-access.md](references/search-actions-and-access.md) | Choosing a retrieval action, interpreting hints, or recovering from access failure |
+| [jev-judge.md](references/jev-judge.md) | Using or evaluating the optional Jev pre-judgment layer (jev_plan / jev_rank) |
 | [budget-and-stopping.md](references/budget-and-stopping.md) | Allocating time/calls, handling retries/branches, or deciding whether to stop |
 | [worked-cases.md](references/worked-cases.md) | Need a short generic pattern for a next action or output boundary |
 | [xai/xai-tools-links.md](references/xai/xai-tools-links.md) | The user specifically needs xAI API documentation links |

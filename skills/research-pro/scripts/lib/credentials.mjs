@@ -28,6 +28,7 @@ export const CANONICAL_KEYS = [
   "TAVILY_API_KEY",
   "XAI_API_KEY",
   "OPENROUTER_API_KEY",
+  "TYPESAFE_API_KEY",
   "FIRECRAWL_API_KEY",
   "YOUTUBE_API_KEY",
   "DATAFORSEO_LOGIN",
@@ -41,6 +42,7 @@ const ALIASES = {
   YOUTUBE_API: "YOUTUBE_API_KEY",
   X_AI: "XAI_API_KEY",
   XAI_KEY: "XAI_API_KEY",
+  JEV_API_KEY: "TYPESAFE_API_KEY",
 };
 
 /**
@@ -353,6 +355,7 @@ export function capabilityReport() {
   const youtube = has("YOUTUBE_API_KEY");
   const dataforseo = has("DATAFORSEO_LOGIN") && has("DATAFORSEO_PASSWORD");
   const reddit = has("REDDIT_SESSION");
+  const typesafe = has("TYPESAFE_API_KEY");
 
   // CLIs (best-effort PATH check)
   const hasBin = (bin) => {
@@ -383,6 +386,7 @@ export function capabilityReport() {
     youtube: youtube || bins.yt_dlp,
     serp: dataforseo,
     reddit_auth: reddit,
+    jev_judge: typesafe,
   };
 
   // READY for research = at least one configured web search API key
