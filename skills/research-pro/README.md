@@ -134,4 +134,4 @@ node scripts/doctor.mjs --require-ready --json
 
 ## Version
 
-`3.19.1-mf` — intent-driven research with claim boundaries tied to inspected material, end-to-end delivery budgeting, and runtime redaction/mirror repairs.
+`3.21.0-mf` — search-tool orchestration policy (capability catalog, provider chains, P0–P6 ladder, per-task budget defaults) plus the optional Jev pre-judgment layer (jev_plan / jev_rank).

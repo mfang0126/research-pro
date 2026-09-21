@@ -16,7 +16,7 @@ description: |
   Output: an answer shaped for the user's decision, with supporting evidence,
   limits, disagreements, and unresolved gaps where they matter.
 user-invocable: true
-version: 3.20.0-mf
+version: 3.21.0-mf
 metadata:
   fork:
     origin: research-pro-v2
@@ -48,10 +48,11 @@ metadata:
       - "v3.17.1-mf: 修复交互式提问可见性；Search Contract 与关键上下文必须放入 clarify.question，不能只显示无上下文的继续确认句"
       - "v3.17.2-mf: trace/cache 运行时加固；统一 root/nested mirror，记录 lifecycle metadata、failure status、coverage 与安全脱敏"
       - "v3.18.0-mf: 选型/推荐类研究强制采用证据卡：分别收集采用、维护、安全与场景契合信号；禁止以单一 star、搜索摘要或模型断言下推荐"
-      - "v3.18.1-mf: 修复 run_id 校验字符类转义错误 — 含 CJK 的问题文本 trace init 被 invalid_run_id 拒绝（`._-\u4e00` 中 `-` 需转义）"
+      - "v3.18.1-mf: 修复 run_id 校验字符类转义错误 — 含 CJK 的问题文本 trace init 被 invalid_run_id 拒绝（`._-\\u4e00` 中 `-` 需转义）"
       - "v3.19.0-mf: intent-driven core; progressive operational and evidence references; legacy contract retained only for compatibility"
       - "v3.19.1-mf: bound claims to inspected material; enforce end-to-end delivery budgeting; repair runtime redaction and mirror regression"
       - "v3.20.0-mf: optional Jev pre-judgment layer (jev_plan/jev_rank) — auto-enabled when TYPESAFE_API_KEY/JEV_API_KEY is present, fail-open, kill switch RESEARCH_PRO_JEV=off; thresholds uncalibrated (triage only)"
+      - "v3.21.0-mf: search-tool orchestration policy (capability catalog + relationships + P0–P6 ladder; budgets as per-task starting defaults; lineage-based convergence); README version sync repaired"
   pattern: intent-driven-spiral-convergence
   requires:
     env: []
@@ -60,7 +61,7 @@ metadata:
     required_environment_variables: []
 ---
 
-# Research Pro v3.20.0-mf
+# Research Pro v3.21.0-mf
 
 Research Pro helps the agent learn enough about a question to make the next useful decision. Search, extraction, transcripts, browser tools, code reading, and trace scripts are means. The model decides what the user is trying to accomplish, what is still unclear, which evidence is relevant, and whether to ask, investigate, validate, or stop.
 
@@ -145,10 +146,25 @@ Distinguish an access refusal, rate limit, JavaScript-only page, truncated body,
 
 When `doctor` reports `jev_judge: available` and `RESEARCH_PRO_JEV` is not `off`, start a non-trivial script-backed search with one bounded planning call (~1s, batched, no retry), then use its result:
 
-- `node scripts/jev_plan.mjs '{"request":"<sub-question>"}'` → Jev picks the keyword query, the time window, and likely hints from rule-based candidates. Use `recommended.query` as the engine query and `recommended.hints` when invoking smart-search.
+- `node scripts/jev_plan.mjs '{"request":"<sub-question>"}'` → Jev picks the keyword query, the time window, and likely hints from rule-based candidates. Use `recommended.query` as the engine query and `recommended.hints` when invoking smart-search (advisory — see the orchestration ladder below; `serp` stays the default discovery route).
 - `node scripts/jev_rank.mjs '{"request":"...","results":[...]}'` → per-row relevance probabilities for ordering and triage. Scores are signal, not evidence; thresholds are local defaults pending calibration — never a hard gate.
 - Fail-open: missing key, `off`, HTTP or timeout error → continue with the normal flow unchanged; the attempt is recorded when a run is active (`tool: jev_plan|jev_rank`).
 - A failed or skipped layer must never block or delay a search beyond its bounded timeout.
+
+### Search orchestration (default ladder)
+
+When external search is needed, follow this default ladder (a recommendation, not a gate; jump straight to a specialist slot when the gap demands it):
+
+- **P0 Plan:** one `jev_plan` call per sub-question when available (~0.6 s, fail-open). Its `recommended.hints` is advisory and covers only its target set (`quick/official/deep/realtime/community/social/video`); `serp` is not a Jev target.
+- **P1 Discover:** `serp` by default (cheapest, raw, traceable); use `quick` only when sub-2s interactivity matters. Never fire both for the same need.
+- **P2 Targeted slots:** add only slots the cheap layer cannot answer — official / realtime / community / social / video; typical ≤3 per sub-question.
+- **P3 Read:** bodies only for candidates that may be cited (`scrape`; fall back by page type to curl / webbridge); typical ≤2. Discovery is not reading.
+- **P4 Triage:** `jev_rank` orders and flags rows (filter rows with empty title and URL first); scores are signal, not evidence.
+- **P5 Synthesis:** `deep` (Tavily research) only for genuine synthesis questions under a raised ledger; default 0 (Standard), ≤1 (Deep).
+- **P5.5 Counter-evidence:** at least one counter/strongest-critique search for Deep, and whenever claim risk is material.
+- **P6 Convergence:** ≥2 independent **lineages** per sub-question — independence follows evidence lineage (same upstream artifact = one source), not backend count.
+
+Budgets are per-task ledger boundaries, not universal quotas (see [references/budget-and-stopping.md](references/budget-and-stopping.md)). Starting defaults: Standard ≈ ≤6 retrieval calls and ≤$0.03 paid per sub-question; Deep ≈ ≤12 retrieval calls, ≤1 research call, ≤$0.05 non-deep per sub-question; state deviations. Fail-open always: a degraded or unavailable backend changes the route, never blocks the loop. Full capability catalog, chains, and prices: [references/search-orchestration.md](references/search-orchestration.md).
 
 ## Delivery
 
@@ -170,6 +186,7 @@ Load only the reference needed for the current action:
 | [operations.md](references/operations.md) | Running doctor, credentials, search wrappers, host-native bridge, trace, or output-safe finalization |
 | [evidence-and-claims.md](references/evidence-and-claims.md) | Assessing a claim, source, counterevidence, recommendation, or inference |
 | [search-actions-and-access.md](references/search-actions-and-access.md) | Choosing a retrieval action, interpreting hints, or recovering from access failure |
+| [search-orchestration.md](references/search-orchestration.md) | Choosing a search route, checking chains/budgets per capability, or reading the orchestration ladder |
 | [jev-judge.md](references/jev-judge.md) | Using or evaluating the optional Jev pre-judgment layer (jev_plan / jev_rank) |
 | [budget-and-stopping.md](references/budget-and-stopping.md) | Allocating time/calls, handling retries/branches, or deciding whether to stop |
 | [worked-cases.md](references/worked-cases.md) | Need a short generic pattern for a next action or output boundary |
