@@ -114,3 +114,7 @@ Budgets are per-task ledger boundaries, not universal quotas ([budget-and-stoppi
 | CJK query with `language_code=zh` | Chinese-language result set |
 | Tavily-family outage handling | `quick` auto-falls back to `serp` with `fallback_used: "dataforseo"` and full degrade metadata |
 | Jev plan/rank | 618–693 ms, `jev-1.13.0`, ~$0.0001/call |
+
+## Observability
+
+`node scripts/orchestration_report.mjs [--runs 20] [--json]` — per-tool usage, degraded/error/fallback counts, average latency, and a fixed-price cost estimate over existing run traces (read-only, no network). Plan-adoption rate is not computed yet — it requires a `jev_trace` extension that records the recommended hints.
