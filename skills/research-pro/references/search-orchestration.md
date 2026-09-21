@@ -17,7 +17,7 @@ Every retrieval capability reachable from research-pro. "Family" = pipeline iden
 | 5 | `realtime` | XAI | Grok web search | Current web/news results | xAI usage | ~2–6 s | discovery (current) | Independent pipeline |
 | 6 | `social` | XAI | Grok `x_search` | X/Twitter posts & threads | xAI usage | ~2–6 s | first-hand social | Only X route; can return 0 legitimately |
 | 7 | `video` | YOUTUBE | YouTube Data API search | Video list + metadata | key quota | ~1–2 s | media discovery | Transcript is a separate read step (see #16) |
-| 8 | `serp` | GOOGLE-RAW | DataForSEO Google organic live/advanced | Raw engine results | $0.002 live / $0.0012 priority / $0.0006 standard | 1–17 s | discovery (most faithful raw) | `site:` and `time_range` honored; CJK via `language_code`; other engines (baidu/naver/seznam) need new endpoints — out of scope |
+| 8 | `serp` | GOOGLE-RAW | DataForSEO Google organic live/advanced | Raw engine results | $0.002 live / $0.0012 priority / $0.0006 standard | 1–17 s | discovery (most faithful raw) | `site:` honored; **`time_range` is accepted but has no effect** (verified 2026-09-21: past_week / past_hour result sets identical to unfiltered) — do not rely on it for recency; CJK via `language_code`; other engines (baidu/naver/seznam) need new endpoints — out of scope; `--limit <10` is a no-op (minimum depth 10) |
 | 9 | `scrape` | SCRAPE | Firecrawl → firecrawl-waitfor → kimi-webbridge | Page body (markdown) | 1 credit/page (free tier 1k/mo; paid $0.0032–0.005) | 3–30 s | reading (citable) | Reddit blocked by CF → use #10 |
 | 10 | `reddit-cli` | SCRAPE | research-pro native Reddit reader | Reddit thread content | free | 1–2 s | reading (Reddit) | Bypasses the CF block |
 | 11 | host `web_search` | HOST | Hermes host tool | Web results | host backend key | ~1 s | discovery | Rides the host's backend (Tavily on this machine — shares #1's outage domain) |
@@ -57,7 +57,7 @@ Surfaces not part of this loop catalog (stated explicitly): the MCP endpoint (`s
 ### E. Fallback edges (chain implementation)
 
 - Tavily family → DataForSEO (implemented in smart-search: Tavily-family failure retries the same intent on `serp`, preserving the hint's query bias; the failed intent is disclosed via `degrade_reason` / `fallback_used`).
-- `deep` (tavily_research) is **not** auto-downgraded — a synthesized report cannot silently become discovery; on failure the agent escalates per the ladder (serp rounds + P5.5).
+- `deep` (tavily_research) is **not** auto-downgraded — a synthesized report cannot silently become discovery; on failure the agent escalates per the ladder (serp rounds + P5.5). Covered by a regression test.
 - #9 chain: firecrawl → firecrawl-waitfor → kimi-webbridge.
 - Reading: host #12 is unstable → fall back to #13 / #9 / #15.
 - Mode orders: research = #8 first; interactive = #1 first. Both valid.
@@ -87,7 +87,7 @@ Surfaces not part of this loop catalog (stated explicitly): the MCP endpoint (`s
 |---|---|---|---|
 | General facts/background | #8 `serp` | #1 `quick` when speed matters | cheapest first |
 | Official docs/rules/pricing | #2 `official`, or #8 with suffix | direct-fetch official domain (#9/#13) | primary-domain read is strongest |
-| Latest/current state | #5 `realtime` | #8 + `time_range` | |
+| Latest/current state | #5 `realtime` | #8 with date-checked snippets (`time_range` ineffective) | verify dates in results |
 | Practitioner/community experience | #3 `community`, or #8 + `site:reddit.com` | #10 `reddit-cli` | |
 | Social reactions | #6 `social` | — | only route |
 | Video/talks | #7 `video` | #16 transcript | |
@@ -110,11 +110,11 @@ Budgets are per-task ledger boundaries, not universal quotas ([budget-and-stoppi
 |---|---|
 | DataForSEO `serp` live, billed | $0.002/call (account statement: 4 calls = $0.008) |
 | `site:` operator pass-through | 10/10 results from the target domain |
-| `time_range=past_week` | Accepted; results returned |
+| `time_range` (past_week, past_hour) | **No effect** — result sets identical to unfiltered across 3 probed calls; not usable for recency |
 | CJK query with `language_code=zh` | Chinese-language result set |
 | Tavily-family outage handling | `quick` auto-falls back to `serp` with `fallback_used: "dataforseo"` and full degrade metadata |
 | Jev plan/rank | 618–693 ms, `jev-1.13.0`, ~$0.0001/call |
 
 ## Observability
 
-`node scripts/orchestration_report.mjs [--runs 20] [--json]` — per-tool usage, degraded/error/fallback counts, average latency, and a fixed-price cost estimate over existing run traces (read-only, no network). Plan-adoption rate is not computed yet — it requires a `jev_trace` extension that records the recommended hints.
+`node scripts/orchestration_report.mjs [--runs 20] [--json]` — per-tool usage, degraded/error/fallback counts, average latency, per-run and total fixed-price cost estimates over existing run traces (read-only, no network). Plan-adoption rate is not computed yet — it requires a `jev_trace` extension that records the recommended hints.

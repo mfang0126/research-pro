@@ -138,6 +138,7 @@ function main() {
       ts: r.ts,
       calls: calls.length,
       degraded_calls: calls.filter((c) => c.degraded || c.status === "degraded").length,
+      fixed_cost_usd_est: Number(calls.reduce((s, c) => s + (PRICE_USD[toolOf(c)] || 0), 0).toFixed(4)),
     });
   }
   const report = {
